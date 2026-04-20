@@ -6,7 +6,8 @@ const socketAuth = async (socket, next) => {
   try {
     const cookies = socket.handshake.headers.cookie || "";
     const parsedCookies = cookie.parse(cookies);
-    const token = parsedCookies.token;
+    const token = parsedCookies.token || socket.handshake.auth?.token;
+
     if (!token) {
       return next(new Error("Not authenticated"));
     }
@@ -22,7 +23,10 @@ const socketAuth = async (socket, next) => {
 
     next();
   } catch (error) {
-    console.error("Socket auth error:", error.message);
+    if (error.name !== "JsonWebTokenError" && error.name !== "TokenExpiredError") {
+      console.error("Socket auth error:", error.message);
+    }
+
     next(new Error("Unauthorized"));
   }
 };

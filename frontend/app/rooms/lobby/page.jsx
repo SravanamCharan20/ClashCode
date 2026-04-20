@@ -1,11 +1,10 @@
-import React from 'react'
+import { Suspense } from "react";
+import LobbyClient from "./LobbyClient";
 
-const Lobby = () => {
+export default function LobbyPage() {
   return (
-    <div>
-      Lobby
-    </div>
-  )
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 px-6 py-24">Loading...</div>}>
+      <LobbyClient />
+    </Suspense>
+  );
 }
-
-export default Lobby

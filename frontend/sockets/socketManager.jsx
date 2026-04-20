@@ -4,7 +4,7 @@ import socket from "./socket.js";
 import { useUser } from "../app/auth/userContext.jsx";
 
 const SocketManager = () => {
-  const { user } = useUser();
+  const { user, loading } = useUser();
 
   useEffect(() => {
     const handleConnect = () => {
@@ -16,18 +16,27 @@ const SocketManager = () => {
     };
 
     const handleConnectError = (error) => {
-      console.error("Socket connection error:", error.message);
+      const message = error?.message || "Unable to connect socket";
+
+      // Auth/socket failures are expected when the session is missing or expired.
+      if (message === "Not authenticated" || message === "Unauthorized") {
+        console.warn("Socket auth skipped:", message);
+        socket.disconnect();
+        return;
+      }
+
+      console.warn("Socket connection issue:", message);
     };
 
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("connect_error", handleConnectError);
 
-    if (user) {
+    if (!loading && user) {
       if (!socket.connected) {
         socket.connect();
       }
-    } else if (socket.connected) {
+    } else if (!loading && socket.connected) {
       socket.disconnect();
     }
 
@@ -36,7 +45,7 @@ const SocketManager = () => {
       socket.off("disconnect", handleDisconnect);
       socket.off("connect_error", handleConnectError);
     };
-  }, [user]);
+  }, [user, loading]);
 
   return null;
 };

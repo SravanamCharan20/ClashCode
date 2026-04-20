@@ -3,6 +3,14 @@ import User from "../models/User.js";
 import userAuth from "../config/auth.js";
 
 const userRouter = express.Router();
+const isProduction = process.env.NODE_ENV === "production";
+
+const authCookieOptions = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: "lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+};
 
 userRouter.post("/signup", async (req, res) => {
   try {
@@ -22,7 +30,7 @@ userRouter.post("/signup", async (req, res) => {
 
     return res.status(201).json({
       message: "User created successfully!!!",
-      userResponse,
+      user: userResponse,
     });
   } catch (error) {
     return res.status(500).json({
@@ -51,19 +59,14 @@ userRouter.post("/signin", async (req, res) => {
 
     const token = user.generateToken();
 
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: false, // true in production
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("token", token, authCookieOptions);
 
     const userResponse = user.toObject();
     delete userResponse.password;
 
     return res.status(200).json({
       message: "Login successfull!!",
-      userResponse,
+      user: userResponse,
     });
   } catch (error) {
     return res.status(500).json({ message: "Error while signin!!",error: error.message });
@@ -81,8 +84,9 @@ userRouter.get("/me", userAuth(), async (req, res) => {
 
 userRouter.post("/logout", (req, res) => {
   res.cookie("token", "", {
-    httpOnly: true,
+    ...authCookieOptions,
     expires: new Date(0),
+    maxAge: 0,
   });
 
   res.json({ message: "Logged out successfully" });
