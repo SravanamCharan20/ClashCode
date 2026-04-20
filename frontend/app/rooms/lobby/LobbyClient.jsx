@@ -10,6 +10,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9999";
 const LobbyClient = () => {
   const searchParams = useSearchParams();
   const roomId = searchParams.get("roomId");
+  const [ready, setReady] = useState("false");
   const initialRoomCode = searchParams.get("roomCode") || "";
   const [participants, setParticipants] = useState([]);
   const [roomCode, setRoomCode] = useState(initialRoomCode);
@@ -82,6 +83,10 @@ const LobbyClient = () => {
     socket.emit("start-room", roomId);
   };
 
+  const handleReady = () => {
+    setReady((prev) => !prev);
+  };
+
   if (loading || userLoading) {
     return <div className="min-h-screen bg-gray-50 px-6 py-24">Loading...</div>;
   }
@@ -94,7 +99,8 @@ const LobbyClient = () => {
         </p>
         <h1 className="mt-3 text-3xl font-semibold text-gray-900">Lobby</h1>
         <p className="mt-2 text-sm text-gray-500">
-          Room Code: <span className="font-medium text-gray-900">{roomCode}</span>
+          Room Code:{" "}
+          <span className="font-medium text-gray-900">{roomCode}</span>
         </p>
 
         {error && (
@@ -110,11 +116,22 @@ const LobbyClient = () => {
             participants.map((participant) => (
               <div
                 key={participant.user}
-                className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3"
+                className="rounded-2xl flex justify-between border border-gray-200 bg-gray-50 px-4 py-3"
               >
-                <p className="text-sm font-medium text-gray-900">
+                <p className="font-medium p-2 text-gray-900">
                   {participant.username}
                 </p>
+
+                <button
+                  onClick={handleReady}
+                  className={`rounded-xl border cursor-pointer p-2 px-4 font-medium transition ${
+                    ready
+                      ? "bg-red-400/70 border-red-500 text-black"
+                      : "bg-green-400/70 border-green-500 text-black"
+                  }`}
+                >
+                  {ready ? "Not Ready" : "Ready"}
+                </button>
               </div>
             ))
           )}
