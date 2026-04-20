@@ -91,6 +91,43 @@ const socketConnection = (io) => {
       }
     });
 
+    socket.on("toggle-ready", async (roomId) => {
+      try {
+        if (!mongoose.Types.ObjectId.isValid(roomId)) {
+          emitRoomError(socket, "Invalid room");
+          return;
+        }
+
+        const room = await Room.findById(roomId);
+        if (!room) {
+          emitRoomError(socket, "Room not found");
+          return;
+        }
+
+        if (room.status !== "waiting") {
+          emitRoomError(socket, "Room already started");
+          return;
+        }
+
+        const participant = room.participants.find(
+          (p) => p.user.toString() === socket.user._id.toString(),
+        );
+
+        if (!participant) {
+          emitRoomError(socket, "Join the room before toggling ready");
+          return;
+        }
+
+        participant.ready = !participant.ready;
+        await room.save();
+
+        io.to(roomId).emit("participants-update", room.participants);
+      } catch (error) {
+        console.log("toggle-ready error:", error.message);
+        emitRoomError(socket, "Could not update ready state");
+      }
+    });
+
     socket.on("disconnect", async () => {
       try {
         console.log("User disconnected:", socket.id);

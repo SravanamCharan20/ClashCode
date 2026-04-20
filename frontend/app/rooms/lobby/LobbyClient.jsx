@@ -10,7 +10,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9999";
 const LobbyClient = () => {
   const searchParams = useSearchParams();
   const roomId = searchParams.get("roomId");
-  const [ready, setReady] = useState("false");
   const initialRoomCode = searchParams.get("roomCode") || "";
   const [participants, setParticipants] = useState([]);
   const [roomCode, setRoomCode] = useState(initialRoomCode);
@@ -18,6 +17,14 @@ const LobbyClient = () => {
   const [error, setError] = useState("");
   const router = useRouter();
   const { user, loading: userLoading } = useUser();
+
+  const currentParticipant = participants.find(
+    (participant) => participant.user?.toString() === user?._id?.toString(),
+  );
+
+  const isCurrentUserReady = Boolean(currentParticipant?.ready);
+  const allReady =
+    participants.length > 0 && participants.every((p) => p.ready);
 
   useEffect(() => {
     const fetchRoom = async () => {
@@ -83,8 +90,9 @@ const LobbyClient = () => {
     socket.emit("start-room", roomId);
   };
 
-  const handleReady = () => {
-    setReady((prev) => !prev);
+  const toggleReady = () => {
+    if (!roomId) return;
+    socket.emit("toggle-ready", roomId);
   };
 
   if (loading || userLoading) {
@@ -116,31 +124,49 @@ const LobbyClient = () => {
             participants.map((participant) => (
               <div
                 key={participant.user}
-                className="rounded-2xl flex justify-between border border-gray-200 bg-gray-50 px-4 py-3"
+                className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3"
               >
-                <p className="font-medium p-2 text-gray-900">
-                  {participant.username}
-                </p>
+                <div>
+                  <p className="font-medium text-gray-900">
+                    {participant.username}
+                    {participant.user?.toString() === user?._id?.toString() && (
+                      <span className="ml-2 text-xs text-gray-500">(You)</span>
+                    )}
+                  </p>
+                </div>
 
-                <button
-                  onClick={handleReady}
-                  className={`rounded-xl border cursor-pointer p-2 px-4 font-medium transition ${
-                    ready
-                      ? "bg-red-400/70 border-red-500 text-black"
-                      : "bg-green-400/70 border-green-500 text-black"
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    participant.ready
+                      ? "bg-green-100 text-green-700"
+                      : "bg-gray-200 text-gray-600"
                   }`}
                 >
-                  {ready ? "Not Ready" : "Ready"}
-                </button>
+                  {participant.ready ? "Ready" : "Waiting"}
+                </span>
               </div>
             ))
           )}
         </div>
 
+        {currentParticipant && (
+          <button
+            onClick={toggleReady}
+            className={`mt-8 rounded-full px-6 py-3 text-sm font-medium shadow-lg transition ${
+              isCurrentUserReady
+                ? "bg-red-500 text-white hover:bg-red-600"
+                : "bg-green-500 text-white hover:bg-green-600"
+            }`}
+          >
+            {isCurrentUserReady ? "Set Not Ready" : "Set Ready"}
+          </button>
+        )}
+
         {user?.role === "admin" && (
           <button
+            disabled={!allReady}
             onClick={start}
-            className="mt-8 rounded-full bg-black px-6 py-3 text-sm font-medium text-white shadow-lg transition hover:bg-gray-900"
+            className="mt-8 ml-3 rounded-full bg-black px-6 py-3 text-sm font-medium text-white shadow-lg transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Start Contest
           </button>

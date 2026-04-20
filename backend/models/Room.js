@@ -12,6 +12,10 @@ const participantSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    ready: {
+      type: Boolean,
+      default: false,
+    },
   },
   { _id: false },
 );
