@@ -1,5 +1,6 @@
 import "./globals.css";
 import { UserProvider } from "./auth/userContext";
+import SocketManager from "../sockets/socketManager";
 
 export default function RootLayout({
   children,
@@ -9,7 +10,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-full flex flex-col">
-        <UserProvider>{children}</UserProvider>
+        <UserProvider>
+          <SocketManager />
+          {children}
+        </UserProvider>
       </body>
     </html>
   );
