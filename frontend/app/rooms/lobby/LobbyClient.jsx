@@ -58,7 +58,7 @@ const LobbyClient = () => {
     };
 
     const handleRoomStarted = () => {
-      router.push("/dashboard");
+      router.push(`/rooms/arena?roomId=${roomId}&roomCode=${roomCode}`);
     };
 
     const handleRoomError = (payload) => {
@@ -75,7 +75,7 @@ const LobbyClient = () => {
       socket.off("room-started", handleRoomStarted);
       socket.off("room-error", handleRoomError);
     };
-  }, [roomId, router, user, userLoading]);
+  }, [roomCode, roomId, router, user, userLoading]);
 
   const start = () => {
     if (!roomId) return;

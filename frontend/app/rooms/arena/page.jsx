@@ -1,11 +1,10 @@
-import React from 'react'
+import { Suspense } from "react";
+import ArenaClient from "./ArenaClient";
 
-const Arena = () => {
+export default function ArenaPage() {
   return (
-    <div>
-      Welcome to Arena!!
-    </div>
-  )
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 px-6 py-24">Loading arena...</div>}>
+      <ArenaClient />
+    </Suspense>
+  );
 }
-
-export default Arena
