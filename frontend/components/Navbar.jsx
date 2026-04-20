@@ -36,7 +36,19 @@ const Navbar = () => {
     >
       {/* Logo */}
       <div className="text-2xl font-semibold tracking-tight text-gray-900 cursor-pointer">
-        Clash<span className="text-green-500/90">Code</span>
+        <Link href="/">
+          Clash<span className="text-green-500/90">Code</span>
+        </Link>
+      </div>
+
+      <Link href="/dashboard">Dashboard</Link>
+
+      <div className="border rounded-xl">
+        {user?.role === "admin" && (
+          <Link href="/rooms/createRoom">Create Room</Link>
+        )}
+
+        <Link href="/rooms/joinRoom">Join Room</Link>
       </div>
 
       {/* Right Actions */}
