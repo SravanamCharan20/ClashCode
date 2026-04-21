@@ -229,6 +229,7 @@ roomRouter.get("/running-room", userAuth(), async (req, res) => {
 roomRouter.post("/:roomId/terminate", userAuth(), async (req, res) => {
   try {
     const { roomId } = req.params;
+    const io = req.app.get("io");
 
     if (!mongoose.Types.ObjectId.isValid(roomId)) {
       return res.status(400).json({ message: "Invalid room id" });
@@ -250,6 +251,22 @@ roomRouter.post("/:roomId/terminate", userAuth(), async (req, res) => {
 
     room.status = "terminated";
     await room.save();
+
+    if (io) {
+      io.to(room._id.toString()).emit("room-terminated", {
+        roomId: room._id.toString(),
+        roomCode: room.roomCode,
+        message: "Room terminated by admin",
+      });
+
+      room.participants.forEach((participant) => {
+        io.to(`user:${participant.user.toString()}`).emit("room-terminated", {
+          roomId: room._id.toString(),
+          roomCode: room.roomCode,
+          message: "Room terminated by admin",
+        });
+      });
+    }
 
     return res.json({
       message: "Room terminated successfully",

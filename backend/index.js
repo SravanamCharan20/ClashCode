@@ -34,6 +34,7 @@ const io = new Server(server, {
 });
 
 socketConnection(io);
+app.set("io", io);
 
 // Routes
 app.use("/auth", userRouter);

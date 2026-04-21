@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Editor from "@monaco-editor/react";
 import { useUser } from "../../auth/userContext";
+import socket from "../../../sockets/socket.js";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9999";
 const scorePalette = [320, 240, 190, 150, 110, 80];
@@ -141,6 +142,26 @@ const ArenaClient = () => {
 
     return () => window.clearInterval(intervalId);
   }, [endsAt]);
+
+  useEffect(() => {
+    const handleRoomTerminated = (payload) => {
+      if (!payload?.roomId || payload.roomId !== activeRoomId) {
+        return;
+      }
+
+      router.push(
+        `/dashboard?notice=room-terminated&roomCode=${encodeURIComponent(
+          payload.roomCode || roomCode || "",
+        )}`,
+      );
+    };
+
+    socket.on("room-terminated", handleRoomTerminated);
+
+    return () => {
+      socket.off("room-terminated", handleRoomTerminated);
+    };
+  }, [activeRoomId, roomCode, router]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {

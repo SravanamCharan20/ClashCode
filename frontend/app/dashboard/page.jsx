@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9999";
 
@@ -24,6 +24,7 @@ const formatRemainingTime = (remainingSeconds) => {
 
 const Dashboard = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [runningRoom, setRunningRoom] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -77,6 +78,8 @@ const Dashboard = () => {
     Boolean(runningRoom.startTime) &&
     typeof remainingSeconds === "number" &&
     remainingSeconds > 0;
+  const showTerminationNotice = searchParams.get("notice") === "room-terminated";
+  const terminatedRoomCode = searchParams.get("roomCode");
 
   return (
     <div className="min-h-screen bg-gray-50 px-6 py-10">
@@ -94,6 +97,14 @@ const Dashboard = () => {
             Manage your contests and resume ongoing ones.
           </p>
         </div>
+
+        {showTerminationNotice && (
+          <div className="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-800 shadow-sm">
+            {terminatedRoomCode
+              ? `Room ${terminatedRoomCode} was terminated by the admin.`
+              : "Room was terminated by the admin."}
+          </div>
+        )}
 
         {/* Running Contest */}
         {hasRunningContest && (
