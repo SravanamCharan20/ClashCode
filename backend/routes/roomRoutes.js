@@ -6,6 +6,58 @@ import Problem from "../models/Problem.js";
 
 const roomRouter = express.Router();
 
+const getContestMeta = (room) => {
+  const startedAt = room.startTime ? new Date(room.startTime) : null;
+  const durationMinutes = Number(room.duration) || 0;
+  const endsAt =
+    startedAt && durationMinutes > 0
+      ? new Date(startedAt.getTime() + durationMinutes * 60 * 1000)
+      : null;
+  const remainingMs = endsAt ? endsAt.getTime() - Date.now() : null;
+  const remainingSeconds =
+    remainingMs === null ? null : Math.max(0, Math.ceil(remainingMs / 1000));
+  const isExpired = Boolean(endsAt && remainingMs <= 0);
+
+  return {
+    startedAt,
+    endsAt,
+    remainingSeconds,
+    isExpired,
+  };
+};
+
+const syncRoomStatus = async (room) => {
+  const contestMeta = getContestMeta(room);
+
+  if (room.status === "started" && contestMeta.isExpired) {
+    room.status = "completed";
+    await room.save();
+  }
+
+  return {
+    room,
+    contestMeta: getContestMeta(room),
+  };
+};
+
+const serializeRoom = (room, contestMeta) => ({
+  id: room._id,
+  roomCode: room.roomCode,
+  status: room.status,
+  duration: room.duration,
+  startTime: room.startTime,
+  startedAt: contestMeta.startedAt,
+  endsAt: contestMeta.endsAt,
+  remainingSeconds: contestMeta.remainingSeconds,
+  participantsCount: room.participants.length,
+  problemsCount: room.problems.length,
+  participants: room.participants,
+  problems: room.problems.map((entry) => ({
+    index: entry.index,
+    problem: entry.problem,
+  })),
+});
+
 const generateRoomCode = () =>
   Math.random().toString(36).substring(2, 8).toUpperCase();
 
@@ -75,21 +127,13 @@ roomRouter.post("/create-room", userAuth("admin"), async (req, res) => {
       })),
     });
 
-    const populatedRoom = await Room.findById(room._id).populate("problems.problem");
+    const populatedRoom = await Room.findById(room._id).populate(
+      "problems.problem",
+    );
 
     res.status(201).json({
       message: "Room created",
-      room: {
-        id: populatedRoom._id,
-        roomCode: populatedRoom.roomCode,
-        status: populatedRoom.status,
-        duration: populatedRoom.duration,
-        participants: populatedRoom.participants,
-        problems: populatedRoom.problems.map((entry) => ({
-          index: entry.index,
-          problem: entry.problem,
-        })),
-      },
+      room: serializeRoom(populatedRoom, getContestMeta(populatedRoom)),
     });
   } catch (error) {
     return res.status(500).json({
@@ -131,20 +175,54 @@ roomRouter.post("/join-room", userAuth(), async (req, res) => {
 
     res.json({
       message: "Joined room successfully",
-      room: {
-        id: room._id,
-        roomCode: room.roomCode,
-        status: room.status,
-        duration: room.duration,
-        participants: room.participants,
-        problems: room.problems.map((entry) => ({
-          index: entry.index,
-          problem: entry.problem,
-        })),
-      },
+      room: serializeRoom(room, getContestMeta(room)),
     });
   } catch (error) {
-    res.status(500).json({ message: "Error joining room", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error joining room", error: error.message });
+  }
+});
+
+roomRouter.get("/running-room", userAuth(), async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const runningRooms = await Room.find({
+      status: "started",
+      "participants.user": userId,
+    })
+      .sort({ startTime: -1, updatedAt: -1 })
+      .populate("problems.problem");
+
+    let activeRoom = null;
+    let activeMeta = null;
+
+    for (const room of runningRooms) {
+      const synced = await syncRoomStatus(room);
+
+      if (synced.room.status === "started") {
+        activeRoom = synced.room;
+        activeMeta = synced.contestMeta;
+        break;
+      }
+    }
+
+    if (!activeRoom) {
+      return res.status(404).json({
+        message: "No running contest found for this user",
+      });
+    }
+
+    return res.json({
+      message: "Running contest found",
+      room: serializeRoom(activeRoom, activeMeta),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error fetching running room",
+      error: error.message,
+    });
   }
 });
 
@@ -156,25 +234,16 @@ roomRouter.get("/:roomId", userAuth(), async (req, res) => {
       return res.status(400).json({ message: "Invalid room id" });
     }
 
-    const room = await Room.findById(roomId).populate("problems.problem");
+    const foundRoom = await Room.findById(roomId).populate("problems.problem");
 
-    if (!room) {
+    if (!foundRoom) {
       return res.status(404).json({ message: "Room not found" });
     }
 
+    const { room, contestMeta } = await syncRoomStatus(foundRoom);
+
     return res.json({
-      room: {
-        id: room._id,
-        roomCode: room.roomCode,
-        status: room.status,
-        duration: room.duration,
-        startTime: room.startTime,
-        participants: room.participants,
-        problems: room.problems.map((entry) => ({
-          index: entry.index,
-          problem: entry.problem,
-        })),
-      },
+      room: serializeRoom(room, contestMeta),
     });
   } catch (error) {
     return res.status(500).json({

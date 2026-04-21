@@ -105,7 +105,21 @@ const LobbyClient = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 px-6 py-12">
-      <div className="mx-auto w-full max-w-7xl">
+      <div className="mx-auto w-full max-w-7xl space-y-6">
+        <div className="rounded-[32px] border border-gray-200 bg-white px-6 py-6 shadow-sm lg:px-8">
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-gray-500">
+            Contest Lobby
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-gray-900">
+            Review the room, confirm the lineup, and launch cleanly.
+          </h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-600">
+            This is the checkpoint before the arena. Participants can review the selected
+            problem slate, toggle readiness, and wait for the admin to move everyone into the
+            contest together.
+          </p>
+        </div>
+
         <div className="mb-6 grid gap-4 md:grid-cols-4">
           <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
             <p className="text-xs uppercase tracking-widest text-gray-500">Room Code</p>
@@ -133,7 +147,7 @@ const LobbyClient = () => {
           </p>
         )}
 
-        <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+        <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
           <ProblemsPanel
             problems={roomProblems}
             title="Problems Panel"
@@ -178,28 +192,30 @@ const LobbyClient = () => {
               )}
             </div>
 
-            {currentParticipant && (
-              <button
-                onClick={toggleReady}
-                className={`mt-8 rounded-full px-6 py-3 text-sm font-medium shadow-lg transition ${
-                  isCurrentUserReady
-                    ? "bg-red-500 text-white hover:bg-red-600"
-                    : "bg-green-500 text-white hover:bg-green-600"
-                }`}
-              >
-                {isCurrentUserReady ? "Set Not Ready" : "Set Ready"}
-              </button>
-            )}
+            <div className="mt-8 flex flex-wrap gap-3">
+              {currentParticipant && (
+                <button
+                  onClick={toggleReady}
+                  className={`rounded-full px-6 py-3 text-sm font-medium shadow-lg transition ${
+                    isCurrentUserReady
+                      ? "bg-red-500 text-white hover:bg-red-600"
+                      : "bg-green-500 text-white hover:bg-green-600"
+                  }`}
+                >
+                  {isCurrentUserReady ? "Set Not Ready" : "Set Ready"}
+                </button>
+              )}
 
-            {user?.role === "admin" && (
-              <button
-                disabled={!allReady}
-                onClick={start}
-                className="mt-8 ml-3 rounded-full bg-black px-6 py-3 text-sm font-medium text-white shadow-lg transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Start Contest
-              </button>
-            )}
+              {user?.role === "admin" && (
+                <button
+                  disabled={!allReady}
+                  onClick={start}
+                  className="rounded-full bg-black px-6 py-3 text-sm font-medium text-white shadow-lg transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Start Contest
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

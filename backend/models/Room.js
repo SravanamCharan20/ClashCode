@@ -42,7 +42,7 @@ const roomSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["waiting", "started"],
+      enum: ["waiting", "started", "completed"],
       default: "waiting",
     },
     
