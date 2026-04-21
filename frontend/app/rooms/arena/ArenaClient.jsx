@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Editor from "@monaco-editor/react";
 import { useUser } from "../../auth/userContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9999";
@@ -44,6 +45,7 @@ const ArenaClient = () => {
   const [selectedProblemId, setSelectedProblemId] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
   const [editorCode, setEditorCode] = useState("");
+  const [codeMap, setCodeMap] = useState({});
   const [selectedTestCase, setSelectedTestCase] = useState(0);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [terminating, setTerminating] = useState(false);
@@ -67,7 +69,9 @@ const ArenaClient = () => {
             resolvedRoomId = runningRoomData.room?.id || null;
 
             if (resolvedRoomId && room?.roomCode) {
-              router.replace(`/rooms/arena?roomId=${resolvedRoomId}&roomCode=${room.roomCode}`);
+              router.replace(
+                `/rooms/arena?roomId=${resolvedRoomId}&roomCode=${room.roomCode}`,
+              );
             }
           }
         }
@@ -93,7 +97,9 @@ const ArenaClient = () => {
           room = data.room || {};
         }
 
-        const problems = (room.problems || []).sort((a, b) => a.index - b.index);
+        const problems = (room.problems || []).sort(
+          (a, b) => a.index - b.index,
+        );
 
         setParticipants(room.participants || []);
         setContestProblems(problems);
@@ -107,6 +113,11 @@ const ArenaClient = () => {
         if (problems.length > 0) {
           const firstProblem = problems[0].problem;
           setSelectedProblemId(firstProblem._id);
+          setCodeMap({
+            javascript: firstProblem.starterCode?.javascript || "",
+            python: firstProblem.starterCode?.python || "",
+          });
+
           setEditorCode(firstProblem.starterCode?.javascript || "");
         }
       } catch {
@@ -143,7 +154,10 @@ const ArenaClient = () => {
   }, []);
 
   const selectedProblemEntry = useMemo(
-    () => contestProblems.find((entry) => entry.problem?._id === selectedProblemId) || contestProblems[0],
+    () =>
+      contestProblems.find(
+        (entry) => entry.problem?._id === selectedProblemId,
+      ) || contestProblems[0],
     [contestProblems, selectedProblemId],
   );
 
@@ -161,7 +175,8 @@ const ArenaClient = () => {
     ? (selectedProblem.testCases || []).filter((testCase) => !testCase.isHidden)
     : [];
 
-  const activeTestCase = visibleTestCases[selectedTestCase] || visibleTestCases[0] || null;
+  const activeTestCase =
+    visibleTestCases[selectedTestCase] || visibleTestCases[0] || null;
   const remainingSeconds = endsAt
     ? now === null
       ? initialRemainingSeconds
@@ -169,16 +184,25 @@ const ArenaClient = () => {
     : initialRemainingSeconds;
   const isAdmin = user?.role === "admin";
   const isContestCompleted =
-    roomStatus === "completed" || roomStatus === "terminated" || remainingSeconds === 0;
+    roomStatus === "completed" ||
+    roomStatus === "terminated" ||
+    remainingSeconds === 0;
   const contestProgress = duration
     ? Math.min(
         100,
-        Math.max(0, ((duration * 60 - (remainingSeconds ?? duration * 60)) / (duration * 60)) * 100),
+        Math.max(
+          0,
+          ((duration * 60 - (remainingSeconds ?? duration * 60)) /
+            (duration * 60)) *
+            100,
+        ),
       )
     : 0;
 
   const handleProblemSelect = (problemId) => {
-    const nextProblem = contestProblems.find((entry) => entry.problem?._id === problemId)?.problem;
+    const nextProblem = contestProblems.find(
+      (entry) => entry.problem?._id === problemId,
+    )?.problem;
 
     if (!nextProblem) {
       return;
@@ -186,13 +210,22 @@ const ArenaClient = () => {
 
     setSelectedProblemId(problemId);
     setSelectedTestCase(0);
-    setEditorCode(nextProblem.starterCode?.[selectedLanguage] || "");
+    setEditorCode(
+      codeMap[selectedLanguage] ||
+        nextProblem.starterCode?.[selectedLanguage] ||
+        ""
+    );
   };
 
   const handleLanguageChange = (language) => {
     setSelectedLanguage(language);
     setSelectedTestCase(0);
-    setEditorCode(selectedProblem?.starterCode?.[language] || "");
+
+    setEditorCode(
+      codeMap[language] ||
+        selectedProblem?.starterCode?.[language] ||
+        ""
+    );
   };
 
   const handleTerminateRoom = async () => {
@@ -265,7 +298,9 @@ const ArenaClient = () => {
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="min-w-[180px] rounded-[24px] border border-black/5 bg-[#111827] px-4 py-3 text-white shadow-sm">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-white/60">Timer</p>
+              <p className="text-[10px] uppercase tracking-[0.24em] text-white/60">
+                Timer
+              </p>
               <p className="mt-1 text-2xl font-semibold tracking-[0.08em]">
                 {formatRemainingTime(remainingSeconds)}
               </p>
@@ -303,73 +338,78 @@ const ArenaClient = () => {
       </div>
 
       <div className="mx-auto flex h-[calc(100vh-109px)] w-full max-w-[1600px] flex-col gap-4 px-4 py-4 lg:px-6 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-
         <section className="min-h-0 overflow-hidden rounded-[30px] border border-black/5 bg-white shadow-sm">
           <div className="border-b border-black/5 px-6 py-4 flex items-center justify-between">
-
             {/* LEFT: Pills */}
             <div className="flex items-center gap-3">
-
-            {/* Problems Pill */}
-            <div className="relative dropdown-container">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setOpenDropdown(openDropdown === "problems" ? null : "problems");
-                }}
-                className="rounded-full bg-gray-950 text-white px-4 py-1.5 text-xs font-medium"
-              >
-                Problems
-              </button>
-
-              {openDropdown === "problems" && (
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  className="absolute mt-2 w-64 rounded-xl border border-gray-200 bg-white shadow-lg z-50 animate-fadeIn"
+              {/* Problems Pill */}
+              <div className="relative dropdown-container">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenDropdown(
+                      openDropdown === "problems" ? null : "problems",
+                    );
+                  }}
+                  className="rounded-full bg-gray-950 text-white px-4 py-1.5 text-xs font-medium"
                 >
-                  {contestProblems.map((entry, index) => (
-                    <div
-                      key={entry.problem._id}
-                      onClick={() => {
-                        handleProblemSelect(entry.problem._id);
-                        setOpenDropdown(null);
-                      }}
-                      className="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer"
-                    >
-                      {String.fromCharCode(65 + index)}. {entry.problem.title}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                  Problems
+                </button>
 
-            {/* Leaderboard Pill */}
-            <div className="relative dropdown-container">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setOpenDropdown(openDropdown === "leaderboard" ? null : "leaderboard");
-                }}
-                className="rounded-full border px-4 py-1.5 text-xs font-medium"
-              >
-                Leaderboard
-              </button>
+                {openDropdown === "problems" && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute mt-2 w-64 rounded-xl border border-gray-200 bg-white shadow-lg z-50 animate-fadeIn"
+                  >
+                    {contestProblems.map((entry, index) => (
+                      <div
+                        key={entry.problem._id}
+                        onClick={() => {
+                          handleProblemSelect(entry.problem._id);
+                          setOpenDropdown(null);
+                        }}
+                        className="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer"
+                      >
+                        {String.fromCharCode(65 + index)}. {entry.problem.title}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-              {openDropdown === "leaderboard" && (
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  className="absolute mt-2 w-64 rounded-xl border border-gray-200 bg-white shadow-lg z-50 right-0 animate-fadeIn"
+              {/* Leaderboard Pill */}
+              <div className="relative dropdown-container">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenDropdown(
+                      openDropdown === "leaderboard" ? null : "leaderboard",
+                    );
+                  }}
+                  className="rounded-full border px-4 py-1.5 text-xs font-medium"
                 >
-                  {leaderboard.map((entry) => (
-                    <div key={entry.user} className="flex justify-between px-3 py-2 text-sm">
-                      <span>{entry.rank}. {entry.username}</span>
-                      <span>{entry.score}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                  Leaderboard
+                </button>
 
+                {openDropdown === "leaderboard" && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute mt-2 w-64 rounded-xl border border-gray-200 bg-white shadow-lg z-50 right-0 animate-fadeIn"
+                  >
+                    {leaderboard.map((entry) => (
+                      <div
+                        key={entry.user}
+                        className="flex justify-between px-3 py-2 text-sm"
+                      >
+                        <span>
+                          {entry.rank}. {entry.username}
+                        </span>
+                        <span>{entry.score}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* RIGHT: Existing Title */}
@@ -381,7 +421,6 @@ const ArenaClient = () => {
                 {selectedProblem?.title || "No problem selected"}
               </h2>
             </div>
-
           </div>
 
           <div className="h-[calc(100%-112px)] overflow-y-auto px-6 py-6">
@@ -415,7 +454,9 @@ const ArenaClient = () => {
                         key={`${example.input}-${index}`}
                         className="rounded-[24px] border border-gray-200 bg-white p-5"
                       >
-                        <p className="text-sm font-semibold text-gray-900">Example {index + 1}</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          Example {index + 1}
+                        </p>
                         <div className="mt-4 grid gap-4">
                           <div className="rounded-2xl bg-[#f5f5f7] p-4">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
@@ -463,7 +504,9 @@ const ArenaClient = () => {
                 )}
               </div>
             ) : (
-              <p className="text-sm text-gray-500">No contest problem available.</p>
+              <p className="text-sm text-gray-500">
+                No contest problem available.
+              </p>
             )}
           </div>
         </section>
@@ -475,9 +518,6 @@ const ArenaClient = () => {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-500">
                   Code Editor
                 </p>
-                <h2 className="mt-2 text-xl font-semibold tracking-tight text-gray-950">
-                  {selectedProblem?.title || "Coding workspace"}
-                </h2>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
@@ -509,20 +549,86 @@ const ArenaClient = () => {
           </div>
 
           <div className="grid h-[calc(100%-89px)] grid-rows-[minmax(0,1fr)_260px]">
-            <div className="overflow-hidden border-b border-black/5 bg-[#0a0f1a]">
-              <textarea
+            <div className="h-full border-b border-black/5 bg-[#0a0f1a]">
+              <Editor
+                height="100%"
+                language={
+                  selectedLanguage === "javascript" ? "javascript" : "python"
+                }
                 value={editorCode}
-                onChange={(e) => setEditorCode(e.target.value)}
-                spellCheck={false}
-                disabled={isContestCompleted}
-                className="h-full w-full resize-none bg-transparent px-5 py-5 font-mono text-sm leading-7 text-gray-100 outline-none disabled:cursor-not-allowed disabled:opacity-70"
+                onChange={(value) => {
+                  setCodeMap((prev) => ({
+                    ...prev,
+                    [selectedLanguage]: value,
+                  }));
+                  setEditorCode(value || "");
+                }}
+                theme="vs-dark"
+                options={{
+                  fontSize: 15,
+                  fontFamily: "JetBrains Mono, Fira Code, monospace",
+                  fontLigatures: true,
+
+                  minimap: {
+                    enabled: false,
+                  },
+
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  wordWrap: "on",
+                  wordWrapColumn: 120,
+
+                  tabSize: 2,
+                  insertSpaces: true,
+
+                  lineNumbers: "on",
+                  lineNumbersMinChars: 3,
+                  glyphMargin: false,
+
+                  folding: true,
+                  foldingHighlight: true,
+
+                  renderLineHighlight: "all",
+                  cursorBlinking: "smooth",
+                  cursorSmoothCaretAnimation: "on",
+                  smoothScrolling: true,
+
+                  suggestOnTriggerCharacters: true,
+                  quickSuggestions: true,
+                  acceptSuggestionOnEnter: "on",
+
+                  bracketPairColorization: {
+                    enabled: true,
+                  },
+
+                  autoClosingBrackets: "always",
+                  autoClosingQuotes: "always",
+                  autoIndent: "full",
+                  formatOnPaste: true,
+                  formatOnType: true,
+
+                  padding: {
+                    top: 16,
+                    bottom: 16,
+                  },
+
+                  scrollbar: {
+                    verticalScrollbarSize: 8,
+                    horizontalScrollbarSize: 8,
+                  },
+
+                  overviewRulerBorder: false,
+                  hideCursorInOverviewRuler: true,
+                }}
               />
             </div>
 
             <div className="overflow-hidden bg-[#fbfbfd]">
               <div className="flex items-center gap-2 border-b border-black/5 px-5 py-3">
                 {visibleTestCases.length === 0 ? (
-                  <span className="text-sm text-gray-500">No visible test cases</span>
+                  <span className="text-sm text-gray-500">
+                    No visible test cases
+                  </span>
                 ) : (
                   visibleTestCases.map((_, index) => (
                     <button
@@ -567,7 +673,8 @@ const ArenaClient = () => {
                 </div>
               ) : (
                 <div className="flex h-[calc(100%-53px)] items-center justify-center px-5 text-sm text-gray-500">
-                  Sample tests will appear here when the selected problem includes them.
+                  Sample tests will appear here when the selected problem
+                  includes them.
                 </div>
               )}
             </div>
