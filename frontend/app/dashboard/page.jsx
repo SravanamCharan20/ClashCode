@@ -70,6 +70,13 @@ const Dashboard = () => {
       ? runningRoom.remainingSeconds
       : Math.max(0, Math.ceil((new Date(runningRoom.endsAt).getTime() - now) / 1000))
     : runningRoom?.remainingSeconds ?? null;
+  const hasRunningContest =
+    !loading &&
+    Boolean(runningRoom) &&
+    runningRoom.status === "started" &&
+    Boolean(runningRoom.startTime) &&
+    typeof remainingSeconds === "number" &&
+    remainingSeconds > 0;
 
   return (
     <div className="min-h-screen bg-gray-50 px-6 py-10">
@@ -89,7 +96,7 @@ const Dashboard = () => {
         </div>
 
         {/* Running Contest */}
-        {!loading && runningRoom && (
+        {hasRunningContest && (
           <div className="rounded-3xl border border-green-200 bg-green-50 p-6 shadow-lg">
             <p className="text-xs font-medium uppercase tracking-widest text-green-600">
               Ongoing Contest
@@ -146,13 +153,6 @@ const Dashboard = () => {
                 Join Another Room
               </button>
             </div>
-          </div>
-        )}
-
-        {/* No Running Contest */}
-        {!loading && !runningRoom && (
-          <div className="rounded-3xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-500">
-            No active contests right now.
           </div>
         )}
 

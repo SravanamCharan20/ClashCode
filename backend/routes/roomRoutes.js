@@ -226,6 +226,43 @@ roomRouter.get("/running-room", userAuth(), async (req, res) => {
   }
 });
 
+roomRouter.post("/:roomId/terminate", userAuth(), async (req, res) => {
+  try {
+    const { roomId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(roomId)) {
+      return res.status(400).json({ message: "Invalid room id" });
+    }
+
+    const room = await Room.findById(roomId).populate("problems.problem");
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    if (room.admin.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Only the room admin can terminate this room" });
+    }
+
+    if (room.status === "terminated") {
+      return res.status(400).json({ message: "Room already terminated" });
+    }
+
+    room.status = "terminated";
+    await room.save();
+
+    return res.json({
+      message: "Room terminated successfully",
+      room: serializeRoom(room, getContestMeta(room)),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error terminating room",
+      error: error.message,
+    });
+  }
+});
+
 roomRouter.get("/:roomId", userAuth(), async (req, res) => {
   try {
     const { roomId } = req.params;
