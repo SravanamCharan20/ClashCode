@@ -821,11 +821,17 @@ const ArenaClient = () => {
                   </div>
                 </div>
 
-                <div className="max-h-[180px] overflow-auto px-4 py-4">
+                <div className="max-h-[260px] overflow-auto px-4 py-4">
                   {!runResult && (
                     <p className="text-sm text-gray-500">
                       Run code to evaluate the visible sample cases.
                     </p>
+                  )}
+
+                  {runResult && runResult.results?.length === 0 && (
+                    <div className="rounded-2xl border border-gray-200 bg-[#fafafc] p-4">
+                      <p className="text-sm text-gray-700">{runResult.summary}</p>
+                    </div>
                   )}
 
                   {runResult?.results?.map((result, index) => (
@@ -833,22 +839,57 @@ const ArenaClient = () => {
                       key={`run-result-${index}`}
                       className="mb-3 rounded-2xl border border-gray-200 bg-[#fafafc] p-4"
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-3">
                         <p className="text-sm font-semibold">
                           Case {index + 1}
                         </p>
                         <span
-                          className={`text-xs font-semibold ${
-                            result.passed ? "text-green-600" : "text-red-600"
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                            result.passed
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-red-50 text-red-700"
                           }`}
                         >
                           {result.passed ? "Passed" : "Failed"}
                         </span>
                       </div>
 
-                      <pre className="mt-2 text-sm text-gray-700">
-                        {result.actualOutput || "(no output)"}
-                      </pre>
+                      {result.errorType && (
+                        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-500">
+                          {result.errorType}
+                        </p>
+                      )}
+
+                      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+                            Expected Output
+                          </p>
+                          <pre className="mt-1 overflow-auto whitespace-pre-wrap rounded-xl bg-white px-3 py-3 font-mono text-sm text-gray-800">
+                            {result.expectedOutput || "(empty)"}
+                          </pre>
+                        </div>
+
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+                            Your Output
+                          </p>
+                          <pre className="mt-1 overflow-auto whitespace-pre-wrap rounded-xl bg-white px-3 py-3 font-mono text-sm text-gray-800">
+                            {result.actualOutput || "(no output)"}
+                          </pre>
+                        </div>
+                      </div>
+
+                      {result.error && (
+                        <div className="mt-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-red-500">
+                            Error From Runner
+                          </p>
+                          <pre className="mt-1 overflow-auto whitespace-pre-wrap rounded-xl bg-red-50 px-3 py-3 font-mono text-sm text-red-700">
+                            {result.error}
+                          </pre>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

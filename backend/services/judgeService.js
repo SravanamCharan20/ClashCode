@@ -48,6 +48,8 @@ export const evaluateSubmission = async ({
     summary:
       failed?.errorType === "timeout"
         ? "Execution timed out"
+        : failed?.errorType === "container"
+        ? "Docker runner error"
         : failed
         ? "Runtime error"
         : `${passedCount}/${totalCount} sample cases passed`,
