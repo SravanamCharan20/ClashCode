@@ -104,40 +104,38 @@ const LobbyClient = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 px-6 py-12">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white px-4 py-10 lg:px-6">
       <div className="mx-auto w-full max-w-7xl space-y-6">
-        <div className="rounded-[32px] border border-gray-200 bg-white px-6 py-6 shadow-sm lg:px-8">
-          <p className="text-xs font-medium uppercase tracking-[0.22em] text-gray-500">
+        <div className="rounded-3xl border border-gray-200 bg-white px-6 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] lg:px-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">
             Contest Lobby
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-gray-900">
-            Review the room, confirm the lineup, and launch cleanly.
+            Final room check before entering arena
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-600">
-            This is the checkpoint before the arena. Participants can review the selected
-            problem slate, toggle readiness, and wait for the admin to move everyone into the
-            contest together.
+            Confirm participants, verify readiness, and launch the contest when the room is fully prepared.
           </p>
         </div>
 
-        <div className="mb-6 grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-            <p className="text-xs uppercase tracking-widest text-gray-500">Room Code</p>
-            <p className="mt-2 text-sm font-medium text-gray-900">{roomCode}</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Room Code</p>
+            <p className="mt-2 text-sm font-semibold text-gray-900">{roomCode}</p>
           </div>
           <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-            <p className="text-xs uppercase tracking-widest text-gray-500">Duration</p>
-            <p className="mt-2 text-sm font-medium text-gray-900">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Duration</p>
+            <p className="mt-2 text-sm font-semibold text-gray-900">
               {duration ? `${duration} minutes` : "Not set"}
             </p>
           </div>
           <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-            <p className="text-xs uppercase tracking-widest text-gray-500">Problems</p>
-            <p className="mt-2 text-sm font-medium text-gray-900">{roomProblems.length}</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Problems</p>
+            <p className="mt-2 text-sm font-semibold text-gray-900">{roomProblems.length}</p>
           </div>
           <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-            <p className="text-xs uppercase tracking-widest text-gray-500">Participants</p>
-            <p className="mt-2 text-sm font-medium text-gray-900">{participants.length}</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Participants</p>
+            <p className="mt-2 text-sm font-semibold text-gray-900">{participants.length}</p>
           </div>
         </div>
 
@@ -154,23 +152,41 @@ const LobbyClient = () => {
             subtitle="Selected Contest Set"
           />
 
-          <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-xl">
-            <p className="text-xs font-medium uppercase tracking-widest text-gray-500">
-              Contest Lobby
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold text-gray-900">Players</h1>
+          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)] lg:p-8">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                  Participants
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold text-gray-900">
+                  Room lineup and readiness
+                </h2>
+              </div>
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  allReady
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-amber-100 text-amber-700"
+                }`}
+              >
+                {allReady ? "All Ready" : "Waiting for readiness"}
+              </span>
+            </div>
 
-            <div className="mt-8 space-y-3">
+            <div className="mt-6 space-y-3">
               {participants.length === 0 ? (
                 <p className="text-sm text-gray-500">No participants yet.</p>
               ) : (
-                participants.map((participant) => (
+                participants.map((participant, index) => (
                   <div
                     key={participant.user}
-                    className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3"
+                    className="grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3"
                   >
-                    <div>
-                      <p className="font-medium text-gray-900">
+                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
+                      #{index + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-gray-900">
                         {participant.username}
                         {participant.user?.toString() === user?._id?.toString() && (
                           <span className="ml-2 text-xs text-gray-500">(You)</span>
@@ -179,9 +195,9 @@ const LobbyClient = () => {
                     </div>
 
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
                         participant.ready
-                          ? "bg-green-100 text-green-700"
+                          ? "bg-emerald-100 text-emerald-700"
                           : "bg-gray-200 text-gray-600"
                       }`}
                     >
@@ -196,10 +212,10 @@ const LobbyClient = () => {
               {currentParticipant && (
                 <button
                   onClick={toggleReady}
-                  className={`rounded-full px-6 py-3 text-sm font-medium shadow-lg transition ${
+                  className={`rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm transition ${
                     isCurrentUserReady
                       ? "bg-red-500 text-white hover:bg-red-600"
-                      : "bg-green-500 text-white hover:bg-green-600"
+                      : "bg-emerald-500 text-white hover:bg-emerald-600"
                   }`}
                 >
                   {isCurrentUserReady ? "Set Not Ready" : "Set Ready"}
@@ -210,7 +226,7 @@ const LobbyClient = () => {
                 <button
                   disabled={!allReady}
                   onClick={start}
-                  className="rounded-full bg-black px-6 py-3 text-sm font-medium text-white shadow-lg transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-full bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Start Contest
                 </button>

@@ -11,7 +11,7 @@ const AppShell = ({ children }) => {
   return (
     <>
       {!isAuthPage && !isArenaPage && <Navbar />}
-      <main className={isAuthPage || isArenaPage ? "" : "pt-28"}>{children}</main>
+      <main className={isAuthPage || isArenaPage ? "" : "pt-0"}>{children}</main>
     </>
   );
 };
