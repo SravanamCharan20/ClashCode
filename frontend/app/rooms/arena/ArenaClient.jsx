@@ -46,12 +46,15 @@ const ArenaClient = () => {
   const [selectedProblemId, setSelectedProblemId] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
   const [editorCode, setEditorCode] = useState("");
-  const [codeMap, setCodeMap] = useState({});
+  const [codeDrafts, setCodeDrafts] = useState({});
   const [selectedTestCase, setSelectedTestCase] = useState(0);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [terminating, setTerminating] = useState(false);
   const [now, setNow] = useState(null);
+  const [runResult, setRunResult] = useState(null);
+  const [runLoading, setRunLoading] = useState(false);
   const { user, loading: userLoading } = useUser();
+  const getDraftKey = (problemId, language) => `${problemId}:${language}`;
 
   useEffect(() => {
     const fetchRoom = async () => {
@@ -114,12 +117,15 @@ const ArenaClient = () => {
         if (problems.length > 0) {
           const firstProblem = problems[0].problem;
           setSelectedProblemId(firstProblem._id);
-          setCodeMap({
-            javascript: firstProblem.starterCode?.javascript || "",
-            python: firstProblem.starterCode?.python || "",
+          setCodeDrafts({
+            [getDraftKey(firstProblem._id, "javascript")]:
+              firstProblem.starterCode?.javascript || "",
+            [getDraftKey(firstProblem._id, "python")]:
+              firstProblem.starterCode?.python || "",
           });
 
           setEditorCode(firstProblem.starterCode?.javascript || "");
+          setRunResult(null);
         }
       } catch {
         setError("Something went wrong while loading the arena");
@@ -231,21 +237,23 @@ const ArenaClient = () => {
 
     setSelectedProblemId(problemId);
     setSelectedTestCase(0);
+    setRunResult(null);
     setEditorCode(
-      codeMap[selectedLanguage] ||
+      codeDrafts[getDraftKey(problemId, selectedLanguage)] ||
         nextProblem.starterCode?.[selectedLanguage] ||
-        ""
+        "",
     );
   };
 
   const handleLanguageChange = (language) => {
     setSelectedLanguage(language);
     setSelectedTestCase(0);
+    setRunResult(null);
 
     setEditorCode(
-      codeMap[language] ||
+      codeDrafts[getDraftKey(selectedProblem?._id, language)] ||
         selectedProblem?.starterCode?.[language] ||
-        ""
+        "",
     );
   };
 
@@ -280,6 +288,72 @@ const ArenaClient = () => {
     } catch {
       setError("Something went wrong while terminating the room");
       setTerminating(false);
+    }
+  };
+
+  const handleRunCode = async () => {
+    if (!activeRoomId || !selectedProblem?._id) {
+      setRunResult({
+        success: false,
+        summary: "Select a valid room problem before running code",
+        results: [],
+      });
+      return;
+    }
+
+    if (!editorCode.trim()) {
+      setRunResult({
+        success: false,
+        summary: "Code cannot be empty",
+        results: [],
+      });
+      return;
+    }
+
+    try {
+      setRunLoading(true);
+      setRunResult(null);
+
+      const res = await fetch(`${API_URL}/exec/run-code`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          roomId: activeRoomId,
+          problemId: selectedProblem._id,
+          code: editorCode,
+          language: selectedLanguage,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setRunResult({
+          success: false,
+          summary: data.message || "Unable to run code",
+          results: [],
+        });
+        return;
+      }
+
+      setRunResult({
+        success: data.success,
+        summary: data.summary,
+        passedCount: data.passedCount,
+        totalCount: data.totalCount,
+        results: data.results || [],
+      });
+    } catch {
+      setRunResult({
+        success: false,
+        summary: "Something went wrong while running code",
+        results: [],
+      });
+    } finally {
+      setRunLoading(false);
     }
   };
 
@@ -465,6 +539,26 @@ const ArenaClient = () => {
                   {selectedProblem.description}
                 </div>
 
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-[24px] border border-gray-200 bg-white p-5">
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
+                      Input Format
+                    </h3>
+                    <p className="mt-3 text-sm leading-6 text-gray-700">
+                      {selectedProblem.inputFormat || "Read input from standard input."}
+                    </p>
+                  </div>
+
+                  <div className="rounded-[24px] border border-gray-200 bg-white p-5">
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
+                      Output Format
+                    </h3>
+                    <p className="mt-3 text-sm leading-6 text-gray-700">
+                      {selectedProblem.outputFormat || "Write output to standard output."}
+                    </p>
+                  </div>
+                </div>
+
                 {selectedProblem.examples?.length > 0 && (
                   <div className="space-y-4">
                     <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
@@ -539,6 +633,9 @@ const ArenaClient = () => {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-500">
                   Code Editor
                 </p>
+                <p className="mt-2 text-sm text-gray-600">
+                  Write a full stdin/stdout solution in contest style.
+                </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
@@ -553,10 +650,11 @@ const ArenaClient = () => {
 
                 <button
                   type="button"
-                  disabled={isContestCompleted}
+                  disabled={isContestCompleted || runLoading}
+                  onClick={handleRunCode}
                   className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Run Code
+                  {runLoading ? "Running..." : "Run Code"}
                 </button>
                 <button
                   type="button"
@@ -578,9 +676,9 @@ const ArenaClient = () => {
                 }
                 value={editorCode}
                 onChange={(value) => {
-                  setCodeMap((prev) => ({
+                  setCodeDrafts((prev) => ({
                     ...prev,
-                    [selectedLanguage]: value,
+                    [getDraftKey(selectedProblem?._id, selectedLanguage)]: value || "",
                   }));
                   setEditorCode(value || "");
                 }}
@@ -644,7 +742,8 @@ const ArenaClient = () => {
               />
             </div>
 
-            <div className="overflow-hidden bg-[#fbfbfd]">
+            <div className="flex h-full flex-col bg-[#fbfbfd]">
+              {/* Testcase Tabs */}
               <div className="flex items-center gap-2 border-b border-black/5 px-5 py-3">
                 {visibleTestCases.length === 0 ? (
                   <span className="text-sm text-gray-500">
@@ -668,36 +767,92 @@ const ArenaClient = () => {
                 )}
               </div>
 
-              {activeTestCase ? (
-                <div className="grid h-[calc(100%-53px)] gap-4 p-5 lg:grid-cols-2">
-                  <div className="overflow-hidden rounded-[22px] border border-gray-200 bg-white">
-                    <div className="border-b border-gray-200 px-4 py-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
-                        Input
-                      </p>
+              {/* Testcase Display */}
+              <div className="flex-1 overflow-auto p-5">
+                {activeTestCase ? (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="overflow-hidden rounded-[22px] border border-gray-200 bg-white">
+                      <div className="border-b border-gray-200 px-4 py-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+                          Input
+                        </p>
+                      </div>
+                      <pre className="overflow-auto whitespace-pre-wrap px-4 py-4 font-mono text-sm text-gray-800">
+                        {activeTestCase.input}
+                      </pre>
                     </div>
-                    <pre className="h-[calc(100%-49px)] overflow-auto whitespace-pre-wrap px-4 py-4 font-mono text-sm text-gray-800">
-                      {activeTestCase.input}
-                    </pre>
-                  </div>
 
-                  <div className="overflow-hidden rounded-[22px] border border-gray-200 bg-white">
-                    <div className="border-b border-gray-200 px-4 py-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
-                        Expected Output
-                      </p>
+                    <div className="overflow-hidden rounded-[22px] border border-gray-200 bg-white">
+                      <div className="border-b border-gray-200 px-4 py-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+                          Expected Output
+                        </p>
+                      </div>
+                      <pre className="overflow-auto whitespace-pre-wrap px-4 py-4 font-mono text-sm text-gray-800">
+                        {activeTestCase.output}
+                      </pre>
                     </div>
-                    <pre className="h-[calc(100%-49px)] overflow-auto whitespace-pre-wrap px-4 py-4 font-mono text-sm text-gray-800">
-                      {activeTestCase.output}
-                    </pre>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center text-sm text-gray-500">
+                    Sample tests will appear here when the selected problem includes them.
+                  </div>
+                )}
+              </div>
+
+              {/* Run Result (NOW ALWAYS VISIBLE) */}
+              <div className="border-t border-gray-200 bg-white">
+                <div className="border-b border-gray-200 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+                      Run Result
+                    </p>
+                    {runResult?.summary && (
+                      <span
+                        className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                          runResult.success
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-amber-50 text-amber-700"
+                        }`}
+                      >
+                        {runResult.summary}
+                      </span>
+                    )}
                   </div>
                 </div>
-              ) : (
-                <div className="flex h-[calc(100%-53px)] items-center justify-center px-5 text-sm text-gray-500">
-                  Sample tests will appear here when the selected problem
-                  includes them.
+
+                <div className="max-h-[180px] overflow-auto px-4 py-4">
+                  {!runResult && (
+                    <p className="text-sm text-gray-500">
+                      Run code to evaluate the visible sample cases.
+                    </p>
+                  )}
+
+                  {runResult?.results?.map((result, index) => (
+                    <div
+                      key={`run-result-${index}`}
+                      className="mb-3 rounded-2xl border border-gray-200 bg-[#fafafc] p-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold">
+                          Case {index + 1}
+                        </p>
+                        <span
+                          className={`text-xs font-semibold ${
+                            result.passed ? "text-green-600" : "text-red-600"
+                          }`}
+                        >
+                          {result.passed ? "Passed" : "Failed"}
+                        </span>
+                      </div>
+
+                      <pre className="mt-2 text-sm text-gray-700">
+                        {result.actualOutput || "(no output)"}
+                      </pre>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </section>

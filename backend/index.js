@@ -9,6 +9,8 @@ import socketConnection from "./sockets/socket.js";
 import userRouter from "./routes/userRoutes.js";
 import roomRouter from "./routes/roomRoutes.js";
 import problemRouter from "./routes/problemRoutes.js";
+import executionRouter from "./routes/executionRoutes.js";
+import seedProblems from "./config/seedProblems.js";
 
 dotenv.config();
 
@@ -40,10 +42,12 @@ app.set("io", io);
 app.use("/auth", userRouter);
 app.use("/room", roomRouter);
 app.use("/problem", problemRouter);
+app.use("/exec", executionRouter);
 
 const startServer = async () => {
   try {
     await connectDB();
+    await seedProblems();
     server.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
