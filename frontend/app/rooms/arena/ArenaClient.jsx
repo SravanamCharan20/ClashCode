@@ -93,9 +93,12 @@ const ArenaClient = () => {
             type="button"
             aria-label="Resize panels"
             onMouseDown={handleMainSplitDragStart}
-            className="group h-full cursor-col-resize rounded-full bg-transparent"
+            className="group relative h-full cursor-col-resize rounded-md bg-[#eef1f7] hover:bg-[#e5e9f3]"
           >
-            <span className="mx-auto block h-full w-[2px] rounded-full bg-gray-200 transition group-hover:bg-gray-400" />
+            <span className="mx-auto block h-full w-[2px] rounded-full bg-gray-400 transition group-hover:bg-gray-600" />
+            <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500 opacity-0 transition group-hover:opacity-100">
+              Drag
+            </span>
           </button>
 
           <ArenaEditorWorkspace

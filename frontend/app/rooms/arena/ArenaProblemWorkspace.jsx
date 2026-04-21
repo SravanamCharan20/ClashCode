@@ -20,15 +20,21 @@ const ArenaProblemWorkspace = ({
                 e.stopPropagation();
                 setOpenDropdown(openDropdown === "problems" ? null : "problems");
               }}
-              className="rounded-full bg-gray-950 px-3 py-1.5 text-xs font-semibold text-white"
+              className="inline-flex items-center gap-2 rounded-full border border-gray-800 bg-gray-950 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-black"
             >
-              Problems
+              <span className="text-[10px] uppercase tracking-[0.12em] text-white/80">
+                Switch
+              </span>
+              <span>Problems</span>
+              <span className="text-[11px] text-white/80">
+                {openDropdown === "problems" ? "▲" : "▼"}
+              </span>
             </button>
 
             {openDropdown === "problems" && (
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="absolute z-50 mt-2 w-64 rounded-xl border border-gray-200 bg-white shadow-lg"
+                className="absolute z-50 mt-2 w-72 rounded-xl border border-gray-200 bg-white shadow-lg"
               >
                 {contestProblems.map((entry, index) => (
                   <div

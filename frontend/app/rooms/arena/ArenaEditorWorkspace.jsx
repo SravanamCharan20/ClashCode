@@ -21,6 +21,11 @@ const ArenaEditorWorkspace = ({
   const [editorHeight, setEditorHeight] = useState(66);
   const workspaceRef = useRef(null);
 
+  const handleRunClick = async () => {
+    setBottomPanelTab("result");
+    await onRunCode();
+  };
+
   const handleEditorSplitDragStart = (event) => {
     event.preventDefault();
 
@@ -70,7 +75,7 @@ const ArenaEditorWorkspace = ({
             <button
               type="button"
               disabled={isContestCompleted || runLoading}
-              onClick={onRunCode}
+              onClick={handleRunClick}
               className="rounded-full border border-gray-300 bg-white px-3.5 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {runLoading ? "Running..." : "Run Code"}
@@ -147,9 +152,12 @@ const ArenaEditorWorkspace = ({
           type="button"
           aria-label="Resize editor and results"
           onMouseDown={handleEditorSplitDragStart}
-          className="group cursor-row-resize bg-transparent"
+          className="group relative cursor-row-resize bg-[#eef1f7] hover:bg-[#e5e9f3]"
         >
-          <span className="mx-auto mt-0.5 block h-[2px] w-full max-w-[96px] rounded-full bg-gray-200 transition group-hover:bg-gray-400" />
+          <span className="mx-auto mt-0.5 block h-[2px] w-full max-w-[120px] rounded-full bg-gray-400 transition group-hover:bg-gray-600" />
+          <span className="pointer-events-none absolute inset-x-0 top-1 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500 opacity-0 transition group-hover:opacity-100">
+            Drag to resize
+          </span>
         </button>
 
         <div className="flex h-full min-h-0 flex-col border-t border-black/5 bg-[#f8f9fb]">

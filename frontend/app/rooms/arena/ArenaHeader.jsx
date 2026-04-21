@@ -51,20 +51,26 @@ const ArenaHeader = ({
             </div>
           </div>
 
-          <div className="order-first flex items-center justify-center rounded-xl border border-gray-700 bg-[#0f172a] px-4 py-2 text-white shadow-sm lg:order-none">
-            <p className="text-xl font-semibold tracking-[0.08em]">
-              {formatRemainingTime(remainingSeconds)}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
+          <div className="order-first flex flex-col items-center gap-2 lg:order-none">
+            <div className="flex items-center justify-center rounded-xl border border-gray-700 bg-[#0f172a] px-4 py-2 text-white shadow-sm">
+              <p className="text-xl font-semibold tracking-[0.08em]">
+                {formatRemainingTime(remainingSeconds)}
+              </p>
+            </div>
             <button
               type="button"
               onClick={() => setContestPanelOpen((prev) => !prev)}
-              className="rounded-full border border-gray-300 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+              className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
+                contestPanelOpen
+                  ? "border-indigo-300 bg-indigo-100 text-indigo-700"
+                  : "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+              }`}
             >
-              {contestPanelOpen ? "Hide Contest Panel" : "Show Contest Panel"}
+              {contestPanelOpen ? "Close Contest Panel" : "Open Contest Panel"}
             </button>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
             <button
               type="button"
               onClick={onExit}
@@ -97,17 +103,28 @@ const ArenaHeader = ({
               className="fixed inset-0 z-40 cursor-default bg-transparent"
               onClick={() => setContestPanelOpen(false)}
             />
-            <div className="fixed right-4 top-[76px] z-50 w-full max-w-[380px] rounded-2xl border border-gray-200 bg-gray-50 p-3 shadow-2xl">
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="fixed left-1/2 top-[92px] z-50 w-[min(94vw,900px)] -translate-x-1/2 rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
+              <div className="mb-3 flex items-center justify-between border-b border-gray-100 pb-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-700">
+                  Contest Panel
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">
+                    Live updates
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 rounded-xl bg-gray-50 p-2">
                 {contestTabs.map((tab) => (
                   <button
                     key={tab.id}
                     type="button"
                     onClick={() => setContestPanelTab(tab.id)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                       contestPanelTab === tab.id
-                        ? "bg-gray-900 text-white"
-                        : "bg-white text-gray-600 hover:bg-gray-100"
+                        ? "border-gray-900 bg-gray-900 text-white"
+                        : "border-transparent bg-white text-gray-700 hover:border-gray-200"
                     }`}
                   >
                     {tab.label}
@@ -115,19 +132,26 @@ const ArenaHeader = ({
                 ))}
               </div>
 
-              <div className="mt-3 max-h-[260px] overflow-y-auto rounded-xl border border-gray-200 bg-white">
+              <div className="mt-4 max-h-[420px] overflow-y-auto rounded-xl border border-gray-200 bg-white">
                 {contestPanelTab === "leaderboard" && (
                   <div className="divide-y divide-gray-100">
                     {leaderboard.length > 0 ? (
-                      leaderboard.map((entry) => (
+                      leaderboard.map((entry, index) => (
                         <div
                           key={`${entry.user || entry.username}-${entry.rank}`}
-                          className="flex items-center justify-between px-4 py-2 text-sm"
+                          className={`grid grid-cols-[56px_minmax(0,1fr)_90px] items-center gap-3 px-4 py-3 text-sm ${
+                            index < 3 ? "bg-amber-50/40" : ""
+                          }`}
                         >
-                          <span className="text-gray-700">
-                            {entry.rank}. {entry.username}
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
+                            #{entry.rank}
                           </span>
-                          <span className="font-semibold text-gray-900">{entry.score}</span>
+                          <span className="truncate font-medium text-gray-800">
+                            {entry.username}
+                          </span>
+                          <span className="text-right font-semibold text-gray-900">
+                            {entry.score} pts
+                          </span>
                         </div>
                       ))
                     ) : (
@@ -144,9 +168,17 @@ const ArenaHeader = ({
                       participants.map((participant, index) => (
                         <div
                           key={`${participant.user || participant.username}-${index}`}
-                          className="px-4 py-2 text-sm text-gray-700"
+                          className="grid grid-cols-[56px_minmax(0,1fr)_110px] items-center gap-3 px-4 py-3 text-sm text-gray-700"
                         >
-                          {index + 1}. {participant.username || "Participant"}
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
+                            P{index + 1}
+                          </span>
+                          <span className="truncate font-medium text-gray-800">
+                            {participant.username || "Participant"}
+                          </span>
+                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
+                            Active
+                          </span>
                         </div>
                       ))
                     ) : (
@@ -156,15 +188,29 @@ const ArenaHeader = ({
                 )}
 
                 {contestPanelTab === "submissions" && (
-                  <p className="px-4 py-3 text-sm text-gray-500">
-                    Submission history opens here during live integration.
-                  </p>
+                  <div className="space-y-3 px-4 py-4">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                      <p className="text-sm font-medium text-gray-800">Submission stream</p>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Latest accepted, failed, and pending submissions will appear here.
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      No submissions available yet for this room.
+                    </p>
+                  </div>
                 )}
 
                 {contestPanelTab === "activity" && (
-                  <p className="px-4 py-3 text-sm text-gray-500">
-                    Room activity will appear here without interrupting coding flow.
-                  </p>
+                  <div className="space-y-3 px-4 py-4">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                      <p className="text-sm font-medium text-gray-800">Contest activity log</p>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Join/leave events, announcements, and important room updates.
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-500">No activity events yet.</p>
+                  </div>
                 )}
               </div>
             </div>
