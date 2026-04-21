@@ -45,6 +45,22 @@ const roomSchema = new mongoose.Schema(
       enum: ["waiting", "started"],
       default: "waiting",
     },
+    
+    problems: [
+      {
+        problem: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Problem",
+          required: true,
+        },
+        index: {
+          type: Number, // 0,1,2,3
+          required: true,
+        },
+      },
+    ],
+    startTime: Date,
+    duration: Number,
   },
   { timestamps: true },
 );

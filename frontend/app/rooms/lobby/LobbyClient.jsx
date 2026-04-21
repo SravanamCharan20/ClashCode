@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import socket from "../../../sockets/socket.js";
 import { useUser } from "../../auth/userContext";
+import ProblemsPanel from "../components/ProblemsPanel";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9999";
 
@@ -13,6 +14,8 @@ const LobbyClient = () => {
   const initialRoomCode = searchParams.get("roomCode") || "";
   const [participants, setParticipants] = useState([]);
   const [roomCode, setRoomCode] = useState(initialRoomCode);
+  const [roomProblems, setRoomProblems] = useState([]);
+  const [duration, setDuration] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -23,8 +26,7 @@ const LobbyClient = () => {
   );
 
   const isCurrentUserReady = Boolean(currentParticipant?.ready);
-  const allReady =
-    participants.length > 0 && participants.every((p) => p.ready);
+  const allReady = participants.length > 0 && participants.every((p) => p.ready);
 
   useEffect(() => {
     const fetchRoom = async () => {
@@ -48,6 +50,8 @@ const LobbyClient = () => {
 
         setParticipants(data.room.participants || []);
         setRoomCode(data.room.roomCode || "");
+        setDuration(data.room.duration || null);
+        setRoomProblems(data.room.problems || []);
       } catch {
         setError("Something went wrong while loading the room");
       } finally {
@@ -100,77 +104,104 @@ const LobbyClient = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 px-6 py-24">
-      <div className="mx-auto w-full max-w-4xl rounded-3xl border border-gray-200 bg-white p-8 shadow-xl">
-        <p className="text-xs font-medium uppercase tracking-widest text-gray-500">
-          Contest Lobby
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold text-gray-900">Lobby</h1>
-        <p className="mt-2 text-sm text-gray-500">
-          Room Code:{" "}
-          <span className="font-medium text-gray-900">{roomCode}</span>
-        </p>
+    <div className="min-h-screen bg-gray-50 px-6 py-12">
+      <div className="mx-auto w-full max-w-7xl">
+        <div className="mb-6 grid gap-4 md:grid-cols-4">
+          <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+            <p className="text-xs uppercase tracking-widest text-gray-500">Room Code</p>
+            <p className="mt-2 text-sm font-medium text-gray-900">{roomCode}</p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+            <p className="text-xs uppercase tracking-widest text-gray-500">Duration</p>
+            <p className="mt-2 text-sm font-medium text-gray-900">
+              {duration ? `${duration} minutes` : "Not set"}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+            <p className="text-xs uppercase tracking-widest text-gray-500">Problems</p>
+            <p className="mt-2 text-sm font-medium text-gray-900">{roomProblems.length}</p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+            <p className="text-xs uppercase tracking-widest text-gray-500">Participants</p>
+            <p className="mt-2 text-sm font-medium text-gray-900">{participants.length}</p>
+          </div>
+        </div>
 
         {error && (
-          <p className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-500">
+          <p className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-500">
             {error}
           </p>
         )}
 
-        <div className="mt-8 space-y-3">
-          {participants.length === 0 ? (
-            <p className="text-sm text-gray-500">No participants yet.</p>
-          ) : (
-            participants.map((participant) => (
-              <div
-                key={participant.user}
-                className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3"
+        <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+          <ProblemsPanel
+            problems={roomProblems}
+            title="Problems Panel"
+            subtitle="Selected Contest Set"
+          />
+
+          <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-xl">
+            <p className="text-xs font-medium uppercase tracking-widest text-gray-500">
+              Contest Lobby
+            </p>
+            <h1 className="mt-3 text-3xl font-semibold text-gray-900">Players</h1>
+
+            <div className="mt-8 space-y-3">
+              {participants.length === 0 ? (
+                <p className="text-sm text-gray-500">No participants yet.</p>
+              ) : (
+                participants.map((participant) => (
+                  <div
+                    key={participant.user}
+                    className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {participant.username}
+                        {participant.user?.toString() === user?._id?.toString() && (
+                          <span className="ml-2 text-xs text-gray-500">(You)</span>
+                        )}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${
+                        participant.ready
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-200 text-gray-600"
+                      }`}
+                    >
+                      {participant.ready ? "Ready" : "Waiting"}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {currentParticipant && (
+              <button
+                onClick={toggleReady}
+                className={`mt-8 rounded-full px-6 py-3 text-sm font-medium shadow-lg transition ${
+                  isCurrentUserReady
+                    ? "bg-red-500 text-white hover:bg-red-600"
+                    : "bg-green-500 text-white hover:bg-green-600"
+                }`}
               >
-                <div>
-                  <p className="font-medium text-gray-900">
-                    {participant.username}
-                    {participant.user?.toString() === user?._id?.toString() && (
-                      <span className="ml-2 text-xs text-gray-500">(You)</span>
-                    )}
-                  </p>
-                </div>
+                {isCurrentUserReady ? "Set Not Ready" : "Set Ready"}
+              </button>
+            )}
 
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${
-                    participant.ready
-                      ? "bg-green-100 text-green-700"
-                      : "bg-gray-200 text-gray-600"
-                  }`}
-                >
-                  {participant.ready ? "Ready" : "Waiting"}
-                </span>
-              </div>
-            ))
-          )}
+            {user?.role === "admin" && (
+              <button
+                disabled={!allReady}
+                onClick={start}
+                className="mt-8 ml-3 rounded-full bg-black px-6 py-3 text-sm font-medium text-white shadow-lg transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Start Contest
+              </button>
+            )}
+          </div>
         </div>
-
-        {currentParticipant && (
-          <button
-            onClick={toggleReady}
-            className={`mt-8 rounded-full px-6 py-3 text-sm font-medium shadow-lg transition ${
-              isCurrentUserReady
-                ? "bg-red-500 text-white hover:bg-red-600"
-                : "bg-green-500 text-white hover:bg-green-600"
-            }`}
-          >
-            {isCurrentUserReady ? "Set Not Ready" : "Set Ready"}
-          </button>
-        )}
-
-        {user?.role === "admin" && (
-          <button
-            disabled={!allReady}
-            onClick={start}
-            className="mt-8 ml-3 rounded-full bg-black px-6 py-3 text-sm font-medium text-white shadow-lg transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Start Contest
-          </button>
-        )}
       </div>
     </div>
   );

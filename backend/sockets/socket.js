@@ -82,6 +82,7 @@ const socketConnection = (io) => {
         }
 
         room.status = "started";
+        room.startTime = new Date();
         await room.save();
 
         io.to(roomId).emit("room-started");

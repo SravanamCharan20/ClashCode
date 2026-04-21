@@ -3,11 +3,12 @@ import connectDB from "./config/db.js";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import userRouter from "./routes/userRoutes.js";
 import http from "http";
 import { Server } from "socket.io";
 import socketConnection from "./sockets/socket.js";
+import userRouter from "./routes/userRoutes.js";
 import roomRouter from "./routes/roomRoutes.js";
+import problemRouter from "./routes/problemRoutes.js";
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ socketConnection(io);
 // Routes
 app.use("/auth", userRouter);
 app.use("/room", roomRouter);
+app.use("/problem", problemRouter);
 
 const startServer = async () => {
   try {
