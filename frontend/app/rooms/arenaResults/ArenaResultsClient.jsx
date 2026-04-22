@@ -126,10 +126,10 @@ const ArenaResultsClient = () => {
               </button>
               <button
                 type="button"
-                onClick={() => router.push("/dashboard")}
+                onClick={() => router.push("/")}
                 className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
               >
-                Back to dashboard
+                Back to home
               </button>
             </div>
           </div>

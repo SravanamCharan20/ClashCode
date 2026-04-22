@@ -35,7 +35,7 @@ const Signin = () => {
       if (!res.ok) throw new Error(data.message);
 
       setUser(data.user ?? data.userResponse);
-      router.push("/dashboard");
+      router.push("/");
     } catch (err) {
       setError(err.message);
     } finally {

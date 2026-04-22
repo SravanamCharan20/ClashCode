@@ -66,7 +66,7 @@ const ArenaClient = () => {
         contestPanelTab={contestPanelTab}
         setContestPanelOpen={setContestPanelOpen}
         setContestPanelTab={setContestPanelTab}
-        onExit={() => router.push("/dashboard")}
+        onExit={() => router.push("/")}
         onTerminate={arena.handleTerminateRoom}
         onComplete={arena.handleCompleteRoom}
       />

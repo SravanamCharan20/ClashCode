@@ -535,7 +535,7 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
         return;
       }
 
-      router.push("/dashboard");
+      router.push("/");
     } catch {
       setError("Something went wrong while terminating the room");
       setTerminating(false);

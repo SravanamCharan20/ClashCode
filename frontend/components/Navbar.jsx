@@ -55,12 +55,6 @@ const Navbar = () => {
           <Link href="/" className={`${navLinkClass("/")} rounded-full px-3 py-1.5`}>
             Home
           </Link>
-          <Link
-            href="/dashboard"
-            className={`${navLinkClass("/dashboard")} rounded-full px-3 py-1.5`}
-          >
-            Dashboard
-          </Link>
           {user?.role === "admin" && (
             <Link
               href="/rooms/createRoom"
