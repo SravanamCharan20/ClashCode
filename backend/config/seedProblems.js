@@ -32,6 +32,9 @@ const dummyProblems = [
     testCases: [
       { input: "4\n2 7 11 15\n9", output: "0 1", isHidden: false },
       { input: "3\n3 2 4\n6", output: "1 2", isHidden: true },
+      { input: "5\n-3 4 3 90 1\n0", output: "0 2", isHidden: true },
+      { input: "2\n0 4\n4", output: "0 1", isHidden: true },
+      { input: "6\n10 -2 8 1 5 7\n6", output: "1 2", isHidden: true },
     ],
   },
   {
@@ -58,7 +61,13 @@ const dummyProblems = [
       python:
         'import sys\n\ns = sys.stdin.read().strip()\n\n# write your solution here\n\nprint("true")',
     },
-    testCases: [{ input: "()[]{}", output: "true", isHidden: false }],
+    testCases: [
+      { input: "()[]{}", output: "true", isHidden: false },
+      { input: "([{}])", output: "true", isHidden: true },
+      { input: "(]", output: "false", isHidden: true },
+      { input: "([)]", output: "false", isHidden: true },
+      { input: "(((())))[]{}", output: "true", isHidden: true },
+    ],
   },
   {
     title: "Sliding Window Maximum",
@@ -89,6 +98,21 @@ const dummyProblems = [
         input: "8 3\n1 3 -1 -3 5 3 6 7",
         output: "3 3 5 5 6 7",
         isHidden: false,
+      },
+      {
+        input: "8 1\n1 3 -1 -3 5 3 6 7",
+        output: "1 3 -1 -3 5 3 6 7",
+        isHidden: true,
+      },
+      {
+        input: "5 2\n9 7 2 4 6",
+        output: "9 7 4 6",
+        isHidden: true,
+      },
+      {
+        input: "6 4\n4 4 4 4 4 4",
+        output: "4 4 4",
+        isHidden: true,
       },
     ],
   },
@@ -122,6 +146,16 @@ const dummyProblems = [
         output: "1 6\n8 10\n15 18",
         isHidden: false,
       },
+      {
+        input: "5\n1 4\n4 5\n10 12\n11 15\n20 25",
+        output: "1 5\n10 15\n20 25",
+        isHidden: true,
+      },
+      {
+        input: "3\n1 2\n3 4\n5 6",
+        output: "1 2\n3 4\n5 6",
+        isHidden: true,
+      },
     ],
   },
   {
@@ -148,7 +182,12 @@ const dummyProblems = [
       python:
         'import sys\n\ndata = sys.stdin.read().strip().splitlines()\nn = int(data[0]) if data else 0\nnums = list(map(int, data[1].split())) if len(data) > 1 and data[1].strip() else []\ntarget = int(data[2]) if len(data) > 2 else 0\n\n# write your solution here\n\nprint(-1)',
     },
-    testCases: [{ input: "6\n-1 0 3 5 9 12\n9", output: "4", isHidden: false }],
+    testCases: [
+      { input: "6\n-1 0 3 5 9 12\n9", output: "4", isHidden: false },
+      { input: "6\n-1 0 3 5 9 12\n2", output: "-1", isHidden: true },
+      { input: "1\n5\n5", output: "0", isHidden: true },
+      { input: "7\n1 4 7 10 15 20 31\n31", output: "6", isHidden: true },
+    ],
   },
   {
     title: "Climb Stairs DP",
@@ -174,7 +213,13 @@ const dummyProblems = [
       python:
         'import sys\n\nn = int(sys.stdin.read().strip() or 0)\n\n# write your solution here\n\nprint(0)',
     },
-    testCases: [{ input: "4", output: "5", isHidden: false }],
+    testCases: [
+      { input: "4", output: "5", isHidden: false },
+      { input: "1", output: "1", isHidden: true },
+      { input: "2", output: "2", isHidden: true },
+      { input: "7", output: "21", isHidden: true },
+      { input: "10", output: "89", isHidden: true },
+    ],
   },
   {
     title: "Island Count",
@@ -205,6 +250,16 @@ const dummyProblems = [
         input: "3 3\n1 1 0\n0 1 0\n1 0 1",
         output: "3",
         isHidden: false,
+      },
+      {
+        input: "4 5\n1 1 0 0 0\n1 0 0 1 1\n0 0 1 0 0\n1 0 0 1 1",
+        output: "5",
+        isHidden: true,
+      },
+      {
+        input: "2 3\n0 0 0\n0 0 0",
+        output: "0",
+        isHidden: true,
       },
     ],
   },
@@ -238,6 +293,16 @@ const dummyProblems = [
         output: "4",
         isHidden: false,
       },
+      {
+        input: "10\n0 3 7 2 5 8 4 6 0 1",
+        output: "9",
+        isHidden: true,
+      },
+      {
+        input: "5\n9 1 -3 2 4",
+        output: "2",
+        isHidden: true,
+      },
     ],
   },
   {
@@ -266,6 +331,9 @@ const dummyProblems = [
     },
     testCases: [
       { input: "6\nA A A B B B\n2", output: "8", isHidden: false },
+      { input: "6\nA A A B B B\n0", output: "6", isHidden: true },
+      { input: "8\nA A A A B B C C\n2", output: "10", isHidden: true },
+      { input: "1\nA\n5", output: "1", isHidden: true },
     ],
   },
   {
@@ -297,6 +365,16 @@ const dummyProblems = [
         input: "hit\ncog\n6\nhot dot dog lot log cog",
         output: "5",
         isHidden: false,
+      },
+      {
+        input: "hit\ncog\n5\nhot dot dog lot log",
+        output: "0",
+        isHidden: true,
+      },
+      {
+        input: "red\ntax\n8\nted tex red tax tad den rex pee",
+        output: "4",
+        isHidden: true,
       },
     ],
   },

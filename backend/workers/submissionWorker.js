@@ -6,6 +6,7 @@ import { Submission } from "../models/Submission.js";
 import connectDB from "../config/db.js";
 import { publishSubmission } from "../config/redisPublisher.js";
 import Room from "../models/Room.js";
+import "../models/Problem.js";
 
 await connectDB();
 console.log("✅ Worker DB connected");
@@ -20,16 +21,33 @@ const connection = new IORedis({
 const worker = new Worker(
   "submission-queue",
   async (job) => {
-    const { code, language, problemId, userId } = job.data;
+    const { code, language, roomId, problemId, userId } = job.data;
     console.log("Processing job:", job.id);
 
-    const testCases = [
-      { input: "2 3", expected: "5" },
-      { input: "10 20", expected: "30" },
-    ];
+    const room = await Room.findById(roomId).populate("problems.problem");
+    if (!room) {
+      throw new Error(`Room not found for submission: ${roomId}`);
+    }
 
-    let results = [];
-    for (let test of testCases) {
+    const problemEntry = (room.problems || []).find(
+      (entry) => entry.problem?._id?.toString() === problemId?.toString(),
+    );
+    if (!problemEntry?.problem) {
+      throw new Error(`Problem ${problemId} not found in room ${roomId}`);
+    }
+
+    const testCases = (problemEntry.problem.testCases || []).map((test) => ({
+      input: test.input,
+      expected: test.output,
+      isHidden: Boolean(test.isHidden),
+    }));
+
+    if (testCases.length === 0) {
+      throw new Error(`No test cases configured for problem ${problemId}`);
+    }
+
+    const results = [];
+    for (const test of testCases) {
       const output = await executeCode({
         code,
         language,
@@ -49,6 +67,7 @@ const worker = new Worker(
           expected: test.expected,
           output,
           verdict,
+          isHidden: test.isHidden,
         });
         break;
       }
@@ -59,6 +78,7 @@ const worker = new Worker(
         expected: test.expected,
         output,
         verdict,
+        isHidden: test.isHidden,
       });
 
       if (verdict !== "AC") break; // stop early like LeetCode
@@ -204,7 +224,7 @@ worker.on("completed", async (job, result) => {
         roomId: job.data.roomId,
         userId: result.userId,
         username: submissionUser?.username || "Participant",
-        problemId: result.problemId,
+         problemId: result.problemId,
         language: job.data.language,
         verdict: finalVerdict,
         createdAt: saved.createdAt,
