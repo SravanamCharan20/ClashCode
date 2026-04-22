@@ -2,7 +2,11 @@ import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import { executeCode } from "../services/executionService.js";
 import { judge } from "../services/judgeService.js";
+import { Submission } from "../models/Submission.js";
+import  connectDB  from "../config/db.js";
 
+await connectDB();
+console.log("✅ Worker DB connected");
 console.log("🔥 Worker started...");
 
 const connection = new IORedis({
@@ -59,13 +63,33 @@ const worker = new Worker(
   { connection },
 );
 
-
-worker.on("completed", (job, result) => {
+worker.on("completed", async (job, result) => {
   console.log("Job completed:", job.id);
-  console.log("Result:", JSON.stringify(result, null, 2));
-  // TODO:
-  // 1. Save to DB
-  // 2. Emit via socket
+
+  try {
+    const finalVerdict = result.results.every((r) => r.verdict === "AC")
+      ? "AC"
+      : result.results.find((r) => r.verdict !== "AC").verdict;
+
+    const saved = await Submission.create({
+      userId: result.userId,
+      problemId: result.problemId,
+      roomId: job.data.roomId,
+      code: job.data.code,
+      language: job.data.language,
+      verdict: finalVerdict,
+      testCases: result.results.map((r) => ({
+        input: r.input,
+        expected: r.expected,
+        output: r.output.stdout || "",
+        verdict: r.verdict,
+      })),
+    });
+
+    console.log("💾 Saved Submission:", saved._id);
+  } catch (err) {
+    console.error("❌ DB Save Error:", err.message);
+  }
 });
 
 worker.on("failed", (job, err) => {
