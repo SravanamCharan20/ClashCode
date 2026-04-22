@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import userAuth from "../config/auth.js";
 import Room from "../models/Room.js";
 import { evaluateSubmission } from "../services/judgeService.js";
+import { submissionQueue } from "../services/queueService.js";
 
 const executionRouter = express.Router();
 
@@ -59,7 +60,40 @@ executionRouter.post("/run-code", userAuth(), async (req, res) => {
     return res.json(result);
   } catch (error) {
     return res.status(500).json({
-      message: "Execution error",
+      message: "Execution error while running code!!",
+      error: error.message,
+    });
+  }
+});
+
+executionRouter.post("/submit-code", userAuth(), async (req, res) => {
+  try {
+    const { code, language, problemId } = req.body;
+    const userId = req.user.id;
+    if (!code?.trim()) {
+      return res.status(400).json({ message: "Code is required" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(problemId || "")) {
+      return res.status(400).json({ message: "Invalid problem id" });
+    }
+
+    const job = submissionQueue.add("submission", {
+      code,
+      language,
+      problemId,
+      userId,
+    });
+
+    return res.json({
+      success: true,
+      jobId: job.id,
+      message: "Submission received",
+    });
+    
+  } catch (error) {
+    return res.status(500).json({
+      message: "Execution error while Submitting code!!",
       error: error.message,
     });
   }

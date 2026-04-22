@@ -58,3 +58,12 @@ export const evaluateSubmission = async ({
     results,
   };
 };
+export const judge = (output, expected) => {
+  if (!output) return "RE";
+
+  if (output.trim() === expected.trim()) {
+    return "AC"; // Accepted
+  }
+
+  return "WA"; // Wrong Answer
+};
