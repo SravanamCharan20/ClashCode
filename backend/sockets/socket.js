@@ -19,10 +19,40 @@ const socketConnection = (io) => {
     if (channel === "submission-result") {
       try {
         const data = JSON.parse(message);
-        const { userId } = data;
+        const { userId, roomId, leaderboard, submission } = data;
 
         // Emit to user's personal room
         io.to(`user:${userId}`).emit("submission-result", data);
+
+        const hasLeaderboard =
+          Array.isArray(leaderboard) && leaderboard.length > 0;
+
+        // Emit leaderboard updates to everyone in the room (if subscribed there)
+        if (roomId && hasLeaderboard) {
+          io.to(roomId).emit("leaderboard-update", {
+            roomId,
+            leaderboard,
+          });
+        }
+
+        // Also emit to each participant's personal room to guarantee delivery in arena.
+        if (hasLeaderboard) {
+          leaderboard.forEach((entry) => {
+            if (entry?.user) {
+              io.to(`user:${entry.user}`).emit("leaderboard-update", {
+                roomId,
+                leaderboard,
+              });
+            }
+          });
+        }
+
+        if (roomId && submission) {
+          io.to(roomId).emit("submission-update", {
+            roomId,
+            submission,
+          });
+        }
       } catch (err) {
         console.log("Redis parse error:", err.message);
       }

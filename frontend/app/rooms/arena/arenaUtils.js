@@ -1,8 +1,6 @@
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:9999";
 
-export const scorePalette = [320, 240, 190, 150, 110, 80];
-
 export const formatRemainingTime = (remainingSeconds) => {
   if (typeof remainingSeconds !== "number") {
     return "--:--";

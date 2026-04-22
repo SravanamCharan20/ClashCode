@@ -60,6 +60,7 @@ const ArenaClient = () => {
         roomStatus={arena.roomStatus}
         leaderboard={arena.leaderboard}
         participants={arena.participants}
+        submissionHistory={arena.submissionHistory}
         contestPanelOpen={contestPanelOpen}
         contestPanelTab={contestPanelTab}
         setContestPanelOpen={setContestPanelOpen}

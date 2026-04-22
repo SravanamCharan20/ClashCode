@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "../../auth/userContext";
 import socket from "../../../sockets/socket.js";
@@ -8,7 +8,6 @@ import {
   API_URL,
   buildEmptyRunResult,
   getDraftKey,
-  scorePalette,
 } from "./arenaUtils";
 
 export const useArenaContest = ({ roomId, initialRoomCode }) => {
@@ -35,6 +34,35 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
   const [now, setNow] = useState(null);
   const [runResult, setRunResult] = useState(null);
   const [runLoading, setRunLoading] = useState(false);
+  const hasRedirectedRef = useRef(false);
+  const [submissionHistory, setSubmissionHistory] = useState([]);
+
+  const applyLeaderboardSnapshot = (leaderboardEntries) => {
+    if (!Array.isArray(leaderboardEntries) || leaderboardEntries.length === 0) {
+      return;
+    }
+
+    setParticipants((prev) => {
+      const prevByUser = new Map(
+        (prev || []).map((participant) => [
+          participant.user?.toString() || "",
+          participant,
+        ]),
+      );
+
+      return leaderboardEntries.map((entry) => {
+        const existing = prevByUser.get(entry.user) || {};
+        return {
+          ...existing,
+          user: entry.user,
+          username: entry.username || existing.username || "Participant",
+          score: entry.score || 0,
+          solvedProblems: entry.solvedProblems || [],
+          lastSolvedAt: entry.lastSolvedAt || null,
+        };
+      });
+    });
+  };
 
   useEffect(() => {
     const fetchRoom = async () => {
@@ -148,6 +176,100 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
     };
   }, [activeRoomId, roomCode, router]);
 
+  useEffect(() => {
+    if (!activeRoomId || !user?._id) {
+      return undefined;
+    }
+
+    const fetchLeaderboard = async () => {
+      try {
+        const res = await fetch(`${API_URL}/room/${activeRoomId}/leaderboard`, {
+          credentials: "include",
+        });
+        if (!res.ok) {
+          return;
+        }
+        const data = await res.json();
+        applyLeaderboardSnapshot(data.leaderboard);
+      } catch {
+        // Keep UI functional even if this one request fails.
+      }
+    };
+
+    fetchLeaderboard();
+    return undefined;
+  }, [activeRoomId, user?._id]);
+
+  useEffect(() => {
+    if (!activeRoomId || !user?._id) {
+      return undefined;
+    }
+
+    const fetchSubmissions = async () => {
+      try {
+        const res = await fetch(`${API_URL}/room/${activeRoomId}/submissions`, {
+          credentials: "include",
+        });
+        if (!res.ok) {
+          return;
+        }
+        const data = await res.json();
+        if (!Array.isArray(data.submissions)) {
+          return;
+        }
+        setSubmissionHistory(data.submissions);
+      } catch {
+        // best effort fetch
+      }
+    };
+
+    fetchSubmissions();
+    return undefined;
+  }, [activeRoomId, user?._id]);
+
+  useEffect(() => {
+    if (!user?._id) return;
+
+    const handleLeaderboardUpdate = (data) => {
+      if (!data?.roomId || data.roomId !== activeRoomId) {
+        return;
+      }
+      applyLeaderboardSnapshot(data.leaderboard);
+    };
+
+    socket.on("leaderboard-update", handleLeaderboardUpdate);
+
+    return () => {
+      socket.off("leaderboard-update", handleLeaderboardUpdate);
+    };
+  }, [activeRoomId, user?._id]);
+
+  useEffect(() => {
+    if (!user?._id) return;
+
+    const handleSubmissionUpdate = (payload) => {
+      if (!payload?.roomId || payload.roomId !== activeRoomId) {
+        return;
+      }
+      const submission = payload.submission;
+      if (!submission?.id) {
+        return;
+      }
+
+      setSubmissionHistory((prev) => {
+        if ((prev || []).some((item) => item.id === submission.id)) {
+          return prev;
+        }
+        return [submission, ...(prev || [])].slice(0, 100);
+      });
+    };
+
+    socket.on("submission-update", handleSubmissionUpdate);
+    return () => {
+      socket.off("submission-update", handleSubmissionUpdate);
+    };
+  }, [activeRoomId, user?._id]);
+
   // Listen for submission results on personal socket room
   useEffect(() => {
     if (!user?._id) return;
@@ -230,15 +352,30 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
   const selectedProblem = selectedProblemEntry?.problem || null;
 
   const leaderboard = useMemo(
-    () =>
-      participants.map((participant, index) => ({
+    () => {
+      const sorted = [...participants].sort((a, b) => {
+        if ((b.score || 0) !== (a.score || 0)) {
+          return (b.score || 0) - (a.score || 0);
+        }
+
+        const aTime = a.lastSolvedAt
+          ? new Date(a.lastSolvedAt).getTime()
+          : Number.MAX_SAFE_INTEGER;
+        const bTime = b.lastSolvedAt
+          ? new Date(b.lastSolvedAt).getTime()
+          : Number.MAX_SAFE_INTEGER;
+        return aTime - bTime;
+      });
+
+      return sorted.map((participant, index) => ({
         ...participant,
         rank: index + 1,
-        solved: Math.max(0, Math.min(index, contestProblems.length)),
-        score: scorePalette[index] || 60,
+        solved: participant.solvedProblems?.length || 0,
+        score: participant.score || 0,
         isCurrentUser: participant.user?.toString() === user?._id?.toString(),
-      })),
-    [contestProblems.length, participants, user?._id],
+      }));
+    },
+    [participants, user?._id],
   );
 
   const visibleTestCases = selectedProblem
@@ -268,6 +405,31 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
         ),
       )
     : 0;
+
+  useEffect(() => {
+    if (!activeRoomId || hasRedirectedRef.current) {
+      return;
+    }
+
+    if (roomStatus === "terminated") {
+      hasRedirectedRef.current = true;
+      router.push(
+        `/dashboard?notice=room-terminated&roomCode=${encodeURIComponent(
+          roomCode || "",
+        )}`,
+      );
+      return;
+    }
+
+    if (roomStatus === "completed" || remainingSeconds === 0) {
+      hasRedirectedRef.current = true;
+      router.push(
+        `/dashboard?notice=room-completed&roomCode=${encodeURIComponent(
+          roomCode || "",
+        )}`,
+      );
+    }
+  }, [activeRoomId, remainingSeconds, roomCode, roomStatus, router]);
 
   const handleProblemSelect = (problemId) => {
     const nextProblem = contestProblems.find(
@@ -466,6 +628,7 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
     remainingSeconds,
     runResult,
     runLoading,
+    submissionHistory,
     handleProblemSelect,
     handleLanguageChange,
     handleEditorChange,

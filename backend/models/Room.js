@@ -16,6 +16,9 @@ const participantSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    solvedProblems: [String],
+    score: { type: Number, default: 0 },
+    lastSolvedAt: Date,
   },
   { _id: false },
 );
@@ -45,7 +48,7 @@ const roomSchema = new mongoose.Schema(
       enum: ["waiting", "started", "completed", "terminated"],
       default: "waiting",
     },
-    
+
     problems: [
       {
         problem: {

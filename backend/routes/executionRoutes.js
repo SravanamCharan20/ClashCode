@@ -69,9 +69,12 @@ executionRouter.post("/run-code", userAuth(), async (req, res) => {
 executionRouter.post("/submit-code", userAuth(), async (req, res) => {
   try {
     const { code, language, roomId, problemId } = req.body;
-    const userId = req.user.id;
+    const userId = req.user?._id?.toString();
     if (!code?.trim()) {
       return res.status(400).json({ message: "Code is required" });
+    }
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
     }
 
     if (!mongoose.Types.ObjectId.isValid(roomId || "")) {

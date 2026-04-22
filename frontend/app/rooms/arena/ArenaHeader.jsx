@@ -10,6 +10,7 @@ const ArenaHeader = ({
   roomStatus,
   leaderboard,
   participants,
+  submissionHistory,
   contestPanelOpen,
   contestPanelTab,
   setContestPanelOpen,
@@ -149,9 +150,12 @@ const ArenaHeader = ({
                           <span className="truncate font-medium text-gray-800">
                             {entry.username}
                           </span>
-                          <span className="text-right font-semibold text-gray-900">
-                            {entry.score} pts
-                          </span>
+                          <div className="text-right">
+                            <p className="font-semibold text-gray-900">{entry.score} pts</p>
+                            <p className="text-[10px] uppercase tracking-[0.12em] text-gray-500">
+                              {entry.solved || 0} solved
+                            </p>
+                          </div>
                         </div>
                       ))
                     ) : (
@@ -195,9 +199,42 @@ const ArenaHeader = ({
                         Latest accepted, failed, and pending submissions will appear here.
                       </p>
                     </div>
-                    <p className="text-sm text-gray-500">
-                      No submissions available yet for this room.
-                    </p>
+                    {submissionHistory?.length > 0 ? (
+                      <div className="space-y-2">
+                        {submissionHistory.map((submission) => (
+                          <div
+                            key={submission.id}
+                            className="grid grid-cols-[minmax(0,1fr)_94px_86px] items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-gray-800">
+                                {submission.username || "Participant"}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {submission.language || "code"} •{" "}
+                                {new Date(submission.createdAt).toLocaleTimeString()}
+                              </p>
+                            </div>
+                            <p className="truncate text-xs text-gray-500">
+                              {submission.problemId?.slice(-6) || "problem"}
+                            </p>
+                            <span
+                              className={`rounded-full px-2 py-1 text-center text-[11px] font-semibold ${
+                                submission.verdict === "AC"
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-red-50 text-red-700"
+                              }`}
+                            >
+                              {submission.verdict}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        No submissions available yet for this room.
+                      </p>
+                    )}
                   </div>
                 )}
 

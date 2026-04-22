@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import userAuth from "../config/auth.js";
 import Room from "../models/Room.js";
 import Problem from "../models/Problem.js";
+import { Submission } from "../models/Submission.js";
 
 const roomRouter = express.Router();
 
@@ -57,6 +58,38 @@ const serializeRoom = (room, contestMeta) => ({
     problem: entry.problem,
   })),
 });
+
+const buildLeaderboard = (participants = []) =>
+  [...participants]
+    .map((participant) => ({
+      user: participant.user?.toString() || "",
+      username: participant.username || "Participant",
+      score: Number.isFinite(Number(participant.score))
+        ? Number(participant.score)
+        : 0,
+      solvedProblems: Array.isArray(participant.solvedProblems)
+        ? participant.solvedProblems
+        : [],
+      lastSolvedAt: participant.lastSolvedAt || null,
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+
+      const aTime = a.lastSolvedAt
+        ? new Date(a.lastSolvedAt).getTime()
+        : Number.MAX_SAFE_INTEGER;
+      const bTime = b.lastSolvedAt
+        ? new Date(b.lastSolvedAt).getTime()
+        : Number.MAX_SAFE_INTEGER;
+      return aTime - bTime;
+    })
+    .map((entry, index) => ({
+      ...entry,
+      rank: index + 1,
+      solved: entry.solvedProblems.length,
+    }));
 
 const generateRoomCode = () =>
   Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -302,6 +335,94 @@ roomRouter.get("/:roomId", userAuth(), async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       message: "Error fetching room",
+      error: error.message,
+    });
+  }
+});
+
+roomRouter.get("/:roomId/leaderboard", userAuth(), async (req, res) => {
+  try {
+    const { roomId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(roomId)) {
+      return res.status(400).json({ message: "Invalid room id" });
+    }
+
+    const room = await Room.findById(roomId);
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    const isParticipant = room.participants.some(
+      (participant) => participant.user?.toString() === req.user._id.toString(),
+    );
+    if (!isParticipant) {
+      return res.status(403).json({ message: "Not allowed" });
+    }
+
+    return res.json({
+      roomId: room._id.toString(),
+      status: room.status,
+      leaderboard: buildLeaderboard(room.participants),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error fetching leaderboard",
+      error: error.message,
+    });
+  }
+});
+
+roomRouter.get("/:roomId/submissions", userAuth(), async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+
+    if (!mongoose.Types.ObjectId.isValid(roomId)) {
+      return res.status(400).json({ message: "Invalid room id" });
+    }
+
+    const room = await Room.findById(roomId);
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    const isParticipant = room.participants.some(
+      (participant) => participant.user?.toString() === req.user._id.toString(),
+    );
+    if (!isParticipant) {
+      return res.status(403).json({ message: "Not allowed" });
+    }
+
+    const usernamesByUserId = new Map(
+      room.participants.map((participant) => [
+        participant.user?.toString() || "",
+        participant.username || "Participant",
+      ]),
+    );
+
+    const submissions = await Submission.find({ roomId: roomId.toString() })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    return res.json({
+      roomId: room._id.toString(),
+      submissions: submissions.map((submission) => ({
+        id: submission._id?.toString() || "",
+        roomId: submission.roomId,
+        userId: submission.userId,
+        username:
+          usernamesByUserId.get(submission.userId?.toString()) || "Participant",
+        problemId: submission.problemId,
+        language: submission.language,
+        verdict: submission.verdict,
+        createdAt: submission.createdAt,
+      })),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error fetching submissions",
       error: error.message,
     });
   }
