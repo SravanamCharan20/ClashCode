@@ -7,6 +7,7 @@ const ArenaHeader = ({
   remainingSeconds,
   isAdmin,
   terminating,
+  completing,
   roomStatus,
   leaderboard,
   participants,
@@ -17,6 +18,7 @@ const ArenaHeader = ({
   setContestPanelTab,
   onExit,
   onTerminate,
+  onComplete,
 }) => {
   const contestTabs = [
     { id: "leaderboard", label: "Leaderboard" },
@@ -80,18 +82,40 @@ const ArenaHeader = ({
               Exit
             </button>
             {isAdmin && (
-              <button
-                type="button"
-                onClick={onTerminate}
-                disabled={terminating || roomStatus === "terminated"}
-                className="rounded-full border border-red-200 bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {roomStatus === "terminated"
-                  ? "Terminated"
-                  : terminating
-                    ? "Terminating..."
-                    : "Terminate"}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={onComplete}
+                  disabled={
+                    completing ||
+                    roomStatus === "completed" ||
+                    roomStatus === "terminated"
+                  }
+                  className="rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {roomStatus === "completed"
+                    ? "Completed"
+                    : completing
+                      ? "Completing..."
+                      : "Complete Contest"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onTerminate}
+                  disabled={
+                    terminating ||
+                    roomStatus === "terminated" ||
+                    roomStatus === "completed"
+                  }
+                  className="rounded-full border border-red-200 bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {roomStatus === "terminated"
+                    ? "Terminated"
+                    : terminating
+                      ? "Terminating..."
+                      : "Terminate"}
+                </button>
+              </>
             )}
           </div>
         </div>

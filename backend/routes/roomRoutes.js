@@ -118,9 +118,9 @@ roomRouter.post("/create-room", userAuth("admin"), async (req, res) => {
       return res.status(400).json({ message: "Select at least one problem" });
     }
 
-    if (Number.isNaN(duration) || duration < 15 || duration > 300) {
+    if (Number.isNaN(duration) || duration < 5 || duration > 300) {
       return res.status(400).json({
-        message: "Duration must be between 15 and 300 minutes",
+        message: "Duration must be between 5 and 300 minutes",
       });
     }
 
@@ -259,6 +259,54 @@ roomRouter.get("/running-room", userAuth(), async (req, res) => {
   }
 });
 
+roomRouter.get("/my-contests", userAuth(), async (req, res) => {
+  try {
+    const userId = req.user._id.toString();
+    const rooms = await Room.find({
+      "participants.user": req.user._id,
+      status: { $in: ["completed", "terminated"] },
+    })
+      .sort({ updatedAt: -1, startTime: -1 })
+      .limit(100)
+      .populate("problems.problem");
+
+    const contests = rooms.map((room) => {
+      const participant = room.participants.find(
+        (entry) => entry.user?.toString() === userId,
+      );
+      const leaderboard = buildLeaderboard(room.participants);
+      const rank =
+        leaderboard.find((entry) => entry.user === userId)?.rank ||
+        leaderboard.length;
+
+      return {
+        id: room._id.toString(),
+        roomCode: room.roomCode,
+        status: room.status,
+        duration: room.duration,
+        startTime: room.startTime,
+        endedAt: room.updatedAt,
+        participantsCount: room.participants.length,
+        problemsCount: room.problems.length,
+        score: Number.isFinite(Number(participant?.score))
+          ? Number(participant.score)
+          : 0,
+        solved: Array.isArray(participant?.solvedProblems)
+          ? participant.solvedProblems.length
+          : 0,
+        rank,
+      };
+    });
+
+    return res.json({ contests });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error fetching participated contests",
+      error: error.message,
+    });
+  }
+});
+
 roomRouter.post("/:roomId/terminate", userAuth(), async (req, res) => {
   try {
     const { roomId } = req.params;
@@ -308,6 +356,69 @@ roomRouter.post("/:roomId/terminate", userAuth(), async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       message: "Error terminating room",
+      error: error.message,
+    });
+  }
+});
+
+roomRouter.post("/:roomId/complete", userAuth(), async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const io = req.app.get("io");
+
+    if (!mongoose.Types.ObjectId.isValid(roomId)) {
+      return res.status(400).json({ message: "Invalid room id" });
+    }
+
+    const room = await Room.findById(roomId).populate("problems.problem");
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    if (room.admin.toString() !== req.user._id.toString()) {
+      return res
+        .status(403)
+        .json({ message: "Only the room admin can complete this room" });
+    }
+
+    if (room.status === "completed") {
+      return res.status(400).json({ message: "Room already completed" });
+    }
+
+    if (room.status === "terminated") {
+      return res.status(400).json({ message: "Room already terminated" });
+    }
+
+    room.status = "completed";
+    await room.save();
+
+    if (io) {
+      const payload = {
+        roomId: room._id.toString(),
+        roomCode: room.roomCode,
+        status: "completed",
+        remainingSeconds: 0,
+        message: "Room completed by admin",
+      };
+
+      io.to(room._id.toString()).emit("room-timer-update", payload);
+      io.to(room._id.toString()).emit("room-completed", payload);
+      room.participants.forEach((participant) => {
+        const userId = participant.user?.toString();
+        if (userId) {
+          io.to(`user:${userId}`).emit("room-timer-update", payload);
+          io.to(`user:${userId}`).emit("room-completed", payload);
+        }
+      });
+    }
+
+    return res.json({
+      message: "Room completed successfully",
+      room: serializeRoom(room, getContestMeta(room)),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error completing room",
       error: error.message,
     });
   }

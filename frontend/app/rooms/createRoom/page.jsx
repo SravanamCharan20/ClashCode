@@ -158,6 +158,7 @@ export default function CreateRoom() {
                     onChange={(e) => setDuration(Number(e.target.value))}
                     className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none"
                   >
+                    <option value={5}>5 minutes (dev)</option>
                     <option value={30}>30 minutes</option>
                     <option value={60}>60 minutes</option>
                     <option value={90}>90 minutes</option>

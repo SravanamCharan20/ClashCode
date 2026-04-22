@@ -75,6 +75,12 @@ const Navbar = () => {
           >
             Join Room
           </Link>
+          <Link
+            href="/contests"
+            className={`${navLinkClass("/contests")} rounded-full px-3 py-1.5`}
+          >
+            Contests
+          </Link>
         </div>
 
         <div className="flex items-center gap-3">

@@ -31,6 +31,7 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
   const [selectedTestCase, setSelectedTestCase] = useState(0);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [terminating, setTerminating] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [now, setNow] = useState(null);
   const [runResult, setRunResult] = useState(null);
   const [runLoading, setRunLoading] = useState(false);
@@ -541,6 +542,36 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
     }
   };
 
+  const handleCompleteRoom = async () => {
+    if (!activeRoomId || !isAdmin || completing) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Complete this room now? All users will be moved to results.",
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setCompleting(true);
+      const res = await fetch(`${API_URL}/room/${activeRoomId}/complete`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Unable to complete room");
+        setCompleting(false);
+      }
+    } catch {
+      setError("Something went wrong while completing the room");
+      setCompleting(false);
+    }
+  };
+
   const handleRunCode = async () => {
     if (!activeRoomId || !selectedProblem?._id) {
       setRunResult(
@@ -661,6 +692,7 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
     leaderboard,
     isAdmin,
     terminating,
+    completing,
     isContestCompleted,
     contestProgress,
     remainingSeconds,
@@ -671,6 +703,7 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
     handleLanguageChange,
     handleEditorChange,
     handleTerminateRoom,
+    handleCompleteRoom,
     handleRunCode,
     handleSubmitCode,
     setOpenDropdown,

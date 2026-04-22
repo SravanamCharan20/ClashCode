@@ -57,6 +57,7 @@ const ArenaClient = () => {
         remainingSeconds={arena.remainingSeconds}
         isAdmin={arena.isAdmin}
         terminating={arena.terminating}
+        completing={arena.completing}
         roomStatus={arena.roomStatus}
         leaderboard={arena.leaderboard}
         participants={arena.participants}
@@ -67,6 +68,7 @@ const ArenaClient = () => {
         setContestPanelTab={setContestPanelTab}
         onExit={() => router.push("/dashboard")}
         onTerminate={arena.handleTerminateRoom}
+        onComplete={arena.handleCompleteRoom}
       />
 
       <div

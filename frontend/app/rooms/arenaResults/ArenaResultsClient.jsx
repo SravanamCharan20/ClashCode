@@ -119,17 +119,17 @@ const ArenaResultsClient = () => {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
+                onClick={() => router.push("/contests")}
+                className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                Back to contests
+              </button>
+              <button
+                type="button"
                 onClick={() => router.push("/dashboard")}
                 className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
               >
                 Back to dashboard
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push(`/rooms/arena?roomId=${roomId}&roomCode=${encodeURIComponent(roomCode)}`)}
-                className="rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-black"
-              >
-                Open arena (read-only)
               </button>
             </div>
           </div>
