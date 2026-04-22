@@ -81,7 +81,9 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
           room = data.room || {};
         }
 
-        const problems = (room.problems || []).sort((a, b) => a.index - b.index);
+        const problems = (room.problems || []).sort(
+          (a, b) => a.index - b.index,
+        );
 
         setParticipants(room.participants || []);
         setContestProblems(problems);
@@ -146,6 +148,66 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
     };
   }, [activeRoomId, roomCode, router]);
 
+  // Listen for submission results on personal socket room
+  useEffect(() => {
+    if (!user?._id) return;
+
+    const handleSubmissionResult = (data) => {
+      console.log("🔥 Submission Result:", data);
+      if (!data?.roomId || data.roomId !== activeRoomId) {
+        return;
+      }
+      if (data.problemId && data.problemId !== selectedProblemId) {
+        return;
+      }
+
+      const normalizedResults = (data.results || []).map((result) => ({
+        input: result.input || "",
+        expectedOutput: result.expectedOutput || result.expected || "",
+        actualOutput:
+          result.actualOutput ||
+          result.output?.stdout ||
+          result.output ||
+          "",
+        passed:
+          typeof result.passed === "boolean"
+            ? result.passed
+            : result.verdict === "AC",
+        error: result.error || result.output?.stderr || "",
+        errorType: result.errorType || result.output?.errorType || null,
+        verdict: result.verdict || null,
+      }));
+      const passedCount =
+        typeof data.passedCount === "number"
+          ? data.passedCount
+          : normalizedResults.filter((r) => r.passed).length;
+      const totalCount =
+        typeof data.totalCount === "number"
+          ? data.totalCount
+          : normalizedResults.length;
+
+      setRunResult({
+        success: data.success ?? (data.verdict ? data.verdict === "AC" : false),
+        summary:
+          data.summary ||
+          (data.verdict
+            ? data.verdict === "AC"
+              ? "Submission Accepted"
+              : `Submission ${data.verdict}`
+            : "Submission Completed"),
+        passedCount,
+        totalCount,
+        results: normalizedResults,
+      });
+    };
+
+    socket.on("submission-result", handleSubmissionResult);
+
+    return () => {
+      socket.off("submission-result", handleSubmissionResult);
+    };
+  }, [activeRoomId, selectedProblemId, user?._id]);
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (!e.target.closest(".dropdown-container")) {
@@ -159,8 +221,9 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
 
   const selectedProblemEntry = useMemo(
     () =>
-      contestProblems.find((entry) => entry.problem?._id === selectedProblemId) ||
-      contestProblems[0],
+      contestProblems.find(
+        (entry) => entry.problem?._id === selectedProblemId,
+      ) || contestProblems[0],
     [contestProblems, selectedProblemId],
   );
 
@@ -280,7 +343,9 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
 
   const handleRunCode = async () => {
     if (!activeRoomId || !selectedProblem?._id) {
-      setRunResult(buildEmptyRunResult("Select a valid room problem before running code"));
+      setRunResult(
+        buildEmptyRunResult("Select a valid room problem before running code"),
+      );
       return;
     }
 
@@ -322,7 +387,56 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
         results: data.results || [],
       });
     } catch {
-      setRunResult(buildEmptyRunResult("Something went wrong while running code"));
+      setRunResult(
+        buildEmptyRunResult("Something went wrong while running code"),
+      );
+    } finally {
+      setRunLoading(false);
+    }
+  };
+
+  const handleSubmitCode = async () => {
+    if (!activeRoomId || !selectedProblem?._id) return;
+
+    if (!editorCode.trim()) {
+      setRunResult(buildEmptyRunResult("Code cannot be empty"));
+      return;
+    }
+
+    try {
+      setRunLoading(true);
+      setRunResult({
+        success: true,
+        summary: "Submitting...",
+        results: [],
+      });
+
+      const res = await fetch(`${API_URL}/exec/submit-code`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          roomId: activeRoomId,
+          problemId: selectedProblem._id,
+          code: editorCode,
+          language: selectedLanguage,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setRunResult(buildEmptyRunResult(data.message || "Submission failed"));
+        return;
+      }
+
+      // IMPORTANT:
+      // Do NOT set final result here
+      // Worker + socket will handle it
+    } catch {
+      setRunResult(buildEmptyRunResult("Something went wrong"));
     } finally {
       setRunLoading(false);
     }
@@ -357,6 +471,7 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
     handleEditorChange,
     handleTerminateRoom,
     handleRunCode,
+    handleSubmitCode,
     setOpenDropdown,
     setSelectedTestCase,
   };

@@ -68,19 +68,48 @@ executionRouter.post("/run-code", userAuth(), async (req, res) => {
 
 executionRouter.post("/submit-code", userAuth(), async (req, res) => {
   try {
-    const { code, language, problemId } = req.body;
+    const { code, language, roomId, problemId } = req.body;
     const userId = req.user.id;
     if (!code?.trim()) {
       return res.status(400).json({ message: "Code is required" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(roomId || "")) {
+      return res.status(400).json({ message: "Invalid room id" });
     }
 
     if (!mongoose.Types.ObjectId.isValid(problemId || "")) {
       return res.status(400).json({ message: "Invalid problem id" });
     }
 
-    const job = submissionQueue.add("submission", {
+    const room = await Room.findById(roomId).populate("problems.problem");
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+    if (room.status !== "started") {
+      return res.status(400).json({
+        message: "Room is not active for submissions",
+      });
+    }
+
+    const isParticipant = room.participants.some(
+      (p) => p.user.toString() === req.user._id.toString(),
+    );
+    if (!isParticipant) {
+      return res.status(403).json({ message: "Not allowed" });
+    }
+
+    const problemEntry = room.problems.find(
+      (p) => p.problem?._id?.toString() === problemId,
+    );
+    if (!problemEntry?.problem) {
+      return res.status(404).json({ message: "Problem not found" });
+    }
+
+    const job = await submissionQueue.add("submission", {
       code,
       language,
+      roomId,
       problemId,
       userId,
     });
@@ -90,7 +119,6 @@ executionRouter.post("/submit-code", userAuth(), async (req, res) => {
       jobId: job.id,
       message: "Submission received",
     });
-    
   } catch (error) {
     return res.status(500).json({
       message: "Execution error while Submitting code!!",

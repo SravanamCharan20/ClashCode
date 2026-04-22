@@ -3,7 +3,8 @@ import IORedis from "ioredis";
 import { executeCode } from "../services/executionService.js";
 import { judge } from "../services/judgeService.js";
 import { Submission } from "../models/Submission.js";
-import  connectDB  from "../config/db.js";
+import connectDB from "../config/db.js";
+import { publishSubmission } from "../config/redisPublisher.js";
 
 await connectDB();
 console.log("✅ Worker DB connected");
@@ -69,7 +70,17 @@ worker.on("completed", async (job, result) => {
   try {
     const finalVerdict = result.results.every((r) => r.verdict === "AC")
       ? "AC"
-      : result.results.find((r) => r.verdict !== "AC").verdict;
+      : result.results.find((r) => r.verdict !== "AC")?.verdict || "RE";
+    const normalizedResults = result.results.map((r) => ({
+      input: r.input,
+      expectedOutput: r.expected,
+      actualOutput: r.output?.stdout || "",
+      passed: r.verdict === "AC",
+      error: r.output?.success ? "" : r.output?.stderr || "",
+      errorType: r.output?.success ? null : r.output?.errorType || null,
+      verdict: r.verdict,
+    }));
+    const passedCount = normalizedResults.filter((r) => r.passed).length;
 
     const saved = await Submission.create({
       userId: result.userId,
@@ -86,7 +97,24 @@ worker.on("completed", async (job, result) => {
       })),
     });
 
-    console.log("💾 Saved Submission:", saved._id);
+    console.log("Saved Submission:", saved._id);
+
+    await publishSubmission({
+      userId: result.userId,
+      roomId: job.data.roomId,
+      problemId: result.problemId,
+      verdict: finalVerdict,
+      summary:
+        finalVerdict === "AC"
+          ? "Submission Accepted"
+          : `Submission ${finalVerdict}`,
+      passedCount,
+      totalCount: normalizedResults.length,
+      success: finalVerdict === "AC",
+      results: normalizedResults,
+    });
+
+    console.log("Submission published");
   } catch (err) {
     console.error("❌ DB Save Error:", err.message);
   }

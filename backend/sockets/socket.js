@@ -1,13 +1,33 @@
 import socketAuth from "../config/socketAuth.js";
 import Room from "../models/Room.js";
 import mongoose from "mongoose";
+import IORedis from "ioredis";
 
 const emitRoomError = (socket, message) => {
   socket.emit("room-error", { message });
 };
 
+const redisSub = new IORedis();
+
 const socketConnection = (io) => {
   io.use(socketAuth);
+
+  // Subscribe to submission results from workers
+  redisSub.subscribe("submission-result");
+
+  redisSub.on("message", (channel, message) => {
+    if (channel === "submission-result") {
+      try {
+        const data = JSON.parse(message);
+        const { userId } = data;
+
+        // Emit to user's personal room
+        io.to(`user:${userId}`).emit("submission-result", data);
+      } catch (err) {
+        console.log("Redis parse error:", err.message);
+      }
+    }
+  });
   io.on("connection", (socket) => {
     const userId = socket.user?._id?.toString();
 

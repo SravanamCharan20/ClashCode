@@ -107,6 +107,7 @@ const ArenaClient = () => {
             isContestCompleted={arena.isContestCompleted}
             runLoading={arena.runLoading}
             onRunCode={arena.handleRunCode}
+            handleSubmitCode={arena.handleSubmitCode}
             editorCode={arena.editorCode}
             onEditorChange={arena.handleEditorChange}
             visibleTestCases={arena.visibleTestCases}
@@ -134,6 +135,7 @@ const ArenaClient = () => {
             isContestCompleted={arena.isContestCompleted}
             runLoading={arena.runLoading}
             onRunCode={arena.handleRunCode}
+            handleSubmitCode={arena.handleSubmitCode}
             editorCode={arena.editorCode}
             onEditorChange={arena.handleEditorChange}
             visibleTestCases={arena.visibleTestCases}

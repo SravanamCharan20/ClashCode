@@ -9,6 +9,7 @@ const ArenaEditorWorkspace = ({
   isContestCompleted,
   runLoading,
   onRunCode,
+  handleSubmitCode,
   editorCode,
   onEditorChange,
   visibleTestCases,
@@ -24,6 +25,10 @@ const ArenaEditorWorkspace = ({
   const handleRunClick = async () => {
     setBottomPanelTab("result");
     await onRunCode();
+  };
+  const handleSubmitClick = async () => {
+    setBottomPanelTab("result");
+    await handleSubmitCode();
   };
 
   const handleEditorSplitDragStart = (event) => {
@@ -82,10 +87,11 @@ const ArenaEditorWorkspace = ({
             </button>
             <button
               type="button"
-              disabled={isContestCompleted}
+              disabled={isContestCompleted || runLoading}
+              onClick={handleSubmitClick}
               className="rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Submit
+              {runLoading ? "Submitting..." : "Submit"}
             </button>
           </div>
         </div>
