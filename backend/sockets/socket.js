@@ -8,9 +8,106 @@ const emitRoomError = (socket, message) => {
 };
 
 const redisSub = new IORedis();
+const roomTimerIntervals = new Map();
+
+const buildRoomTimerPayload = (room) => {
+  const startTime = room?.startTime ? new Date(room.startTime).getTime() : null;
+  const durationMinutes = Number(room?.duration) || 0;
+  const endsAtMs =
+    startTime && durationMinutes > 0
+      ? startTime + durationMinutes * 60 * 1000
+      : null;
+  const remainingSeconds =
+    endsAtMs === null
+      ? null
+      : Math.max(0, Math.ceil((endsAtMs - Date.now()) / 1000));
+
+  return {
+    roomId: room._id.toString(),
+    status: room.status,
+    endsAt: endsAtMs ? new Date(endsAtMs).toISOString() : null,
+    remainingSeconds,
+  };
+};
+
+const emitRoomTimerUpdate = (io, room, payloadOverride = null) => {
+  const payload = payloadOverride || buildRoomTimerPayload(room);
+  io.to(room._id.toString()).emit("room-timer-update", payload);
+
+  room.participants.forEach((participant) => {
+    const userId = participant.user?.toString();
+    if (userId) {
+      io.to(`user:${userId}`).emit("room-timer-update", payload);
+    }
+  });
+};
+
+const stopRoomTimer = (roomId) => {
+  const key = roomId.toString();
+  const intervalId = roomTimerIntervals.get(key);
+  if (intervalId) {
+    clearInterval(intervalId);
+    roomTimerIntervals.delete(key);
+  }
+};
+
+const ensureRoomTimer = (io, roomId) => {
+  const key = roomId.toString();
+  if (roomTimerIntervals.has(key)) {
+    return;
+  }
+
+  const intervalId = setInterval(async () => {
+    try {
+      const room = await Room.findById(key);
+      if (!room || room.status !== "started") {
+        stopRoomTimer(key);
+        return;
+      }
+
+      const timerPayload = buildRoomTimerPayload(room);
+
+      if (timerPayload.remainingSeconds === 0) {
+        room.status = "completed";
+        await room.save();
+
+        const completedPayload = {
+          ...timerPayload,
+          status: "completed",
+        };
+        emitRoomTimerUpdate(io, room, completedPayload);
+        io.to(room._id.toString()).emit("room-completed", completedPayload);
+        room.participants.forEach((participant) => {
+          const userId = participant.user?.toString();
+          if (userId) {
+            io.to(`user:${userId}`).emit("room-completed", completedPayload);
+          }
+        });
+        stopRoomTimer(key);
+        return;
+      }
+
+      emitRoomTimerUpdate(io, room, timerPayload);
+    } catch (error) {
+      console.log("timer interval error:", error.message);
+      stopRoomTimer(key);
+    }
+  }, 1000);
+
+  roomTimerIntervals.set(key, intervalId);
+};
 
 const socketConnection = (io) => {
   io.use(socketAuth);
+
+  Room.find({ status: "started" })
+    .select("_id")
+    .then((rooms) => {
+      rooms.forEach((room) => ensureRoomTimer(io, room._id));
+    })
+    .catch((error) => {
+      console.log("timer bootstrap error:", error.message);
+    });
 
   // Subscribe to submission results from workers
   redisSub.subscribe("submission-result");
@@ -147,6 +244,8 @@ const socketConnection = (io) => {
         room.status = "started";
         room.startTime = new Date();
         await room.save();
+        ensureRoomTimer(io, room._id);
+        emitRoomTimerUpdate(io, room);
 
         io.to(roomId).emit("room-started");
       } catch (error) {

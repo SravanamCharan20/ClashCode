@@ -428,4 +428,72 @@ roomRouter.get("/:roomId/submissions", userAuth(), async (req, res) => {
   }
 });
 
+roomRouter.get("/:roomId/results", userAuth(), async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const limit = Math.min(250, Math.max(1, Number(req.query.limit) || 200));
+
+    if (!mongoose.Types.ObjectId.isValid(roomId)) {
+      return res.status(400).json({ message: "Invalid room id" });
+    }
+
+    const room = await Room.findById(roomId).populate("problems.problem");
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    const isParticipant = room.participants.some(
+      (participant) => participant.user?.toString() === req.user._id.toString(),
+    );
+    if (!isParticipant) {
+      return res.status(403).json({ message: "Not allowed" });
+    }
+
+    const usernamesByUserId = new Map(
+      room.participants.map((participant) => [
+        participant.user?.toString() || "",
+        participant.username || "Participant",
+      ]),
+    );
+
+    const submissions = await Submission.find({ roomId: roomId.toString() })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    return res.json({
+      room: {
+        id: room._id.toString(),
+        roomCode: room.roomCode,
+        status: room.status,
+        duration: room.duration,
+        startTime: room.startTime,
+        problems: (room.problems || []).map((entry) => ({
+          index: entry.index,
+          problemId: entry.problem?._id?.toString() || "",
+          title: entry.problem?.title || "Problem",
+        })),
+      },
+      leaderboard: buildLeaderboard(room.participants),
+      submissions: submissions.map((submission) => ({
+        id: submission._id?.toString() || "",
+        roomId: submission.roomId,
+        userId: submission.userId,
+        username:
+          usernamesByUserId.get(submission.userId?.toString()) || "Participant",
+        problemId: submission.problemId,
+        language: submission.language,
+        verdict: submission.verdict,
+        createdAt: submission.createdAt,
+        code: submission.code || "",
+      })),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error fetching arena results",
+      error: error.message,
+    });
+  }
+});
+
 export default roomRouter;

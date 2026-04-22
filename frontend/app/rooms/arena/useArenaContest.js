@@ -162,10 +162,11 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
         return;
       }
 
+      hasRedirectedRef.current = true;
       router.push(
-        `/dashboard?notice=room-terminated&roomCode=${encodeURIComponent(
+        `/rooms/arenaResults?roomId=${activeRoomId}&roomCode=${encodeURIComponent(
           payload.roomCode || roomCode || "",
-        )}`,
+        )}&notice=room-terminated`,
       );
     };
 
@@ -175,6 +176,43 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
       socket.off("room-terminated", handleRoomTerminated);
     };
   }, [activeRoomId, roomCode, router]);
+
+  useEffect(() => {
+    if (!user?._id) return;
+
+    const handleRoomTimerUpdate = (payload) => {
+      if (!payload?.roomId || payload.roomId !== activeRoomId) {
+        return;
+      }
+      if (typeof payload.remainingSeconds === "number") {
+        setInitialRemainingSeconds(payload.remainingSeconds);
+        setNow(Date.now());
+      }
+      if (payload.endsAt) {
+        setEndsAt(payload.endsAt);
+      }
+      if (payload.status) {
+        setRoomStatus(payload.status);
+      }
+    };
+
+    const handleRoomCompleted = (payload) => {
+      if (!payload?.roomId || payload.roomId !== activeRoomId) {
+        return;
+      }
+      setRoomStatus("completed");
+      setInitialRemainingSeconds(0);
+      setNow(Date.now());
+    };
+
+    socket.on("room-timer-update", handleRoomTimerUpdate);
+    socket.on("room-completed", handleRoomCompleted);
+
+    return () => {
+      socket.off("room-timer-update", handleRoomTimerUpdate);
+      socket.off("room-completed", handleRoomCompleted);
+    };
+  }, [activeRoomId, user?._id]);
 
   useEffect(() => {
     if (!activeRoomId || !user?._id) {
@@ -414,9 +452,9 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
     if (roomStatus === "terminated") {
       hasRedirectedRef.current = true;
       router.push(
-        `/dashboard?notice=room-terminated&roomCode=${encodeURIComponent(
+        `/rooms/arenaResults?roomId=${activeRoomId}&roomCode=${encodeURIComponent(
           roomCode || "",
-        )}`,
+        )}&notice=room-terminated`,
       );
       return;
     }
@@ -424,9 +462,9 @@ export const useArenaContest = ({ roomId, initialRoomCode }) => {
     if (roomStatus === "completed" || remainingSeconds === 0) {
       hasRedirectedRef.current = true;
       router.push(
-        `/dashboard?notice=room-completed&roomCode=${encodeURIComponent(
+        `/rooms/arenaResults?roomId=${activeRoomId}&roomCode=${encodeURIComponent(
           roomCode || "",
-        )}`,
+        )}&notice=room-completed`,
       );
     }
   }, [activeRoomId, remainingSeconds, roomCode, roomStatus, router]);

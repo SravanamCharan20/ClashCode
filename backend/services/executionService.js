@@ -44,8 +44,12 @@ export const executeCode = async ({ code, language, input }) => {
   await fs.writeFile(inputPath, input || "", "utf8");
 
   const runtimeCmd = language === "javascript" ? "node" : "python3";
+  const containerName = `clashcode-runner-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`;
 
   const command = `docker run --rm \\
+  --name ${containerName} \\
   --memory=100m \\
   --cpus=0.5 \\
   --pids-limit=64 \\
@@ -57,12 +61,49 @@ export const executeCode = async ({ code, language, input }) => {
   sh -c "${runtimeCmd} /app/solution.${config.extension} < /app/input.txt"`;
 
   return new Promise((resolve) => {
-    const child = spawn("sh", ["-c", command], {
-      timeout: EXECUTION_TIMEOUT_MS,
-    });
+    const child = spawn("sh", ["-c", command]);
 
     let stdout = "";
     let stderr = "";
+    let settled = false;
+
+    const finalize = async ({ success, errorType = null, stdoutOut, stderrOut }) => {
+      if (settled) return;
+      settled = true;
+
+      try {
+        await fs.rm(tempDir, { recursive: true, force: true });
+      } catch {}
+
+      resolve({
+        success,
+        ...(success
+          ? {
+              stdout: truncateOutput(stdoutOut || ""),
+              stderr: "",
+            }
+          : {
+              errorType,
+              stderr: truncateOutput(stderrOut || ""),
+              stdout: truncateOutput(stdoutOut || ""),
+            }),
+      });
+    };
+
+    const timeoutId = setTimeout(() => {
+      // Hard stop runaway submissions (e.g., infinite loops).
+      child.kill("SIGKILL");
+      const cleanup = spawn("docker", ["rm", "-f", containerName]);
+      cleanup.on("error", () => {});
+
+      finalize({
+        success: false,
+        errorType: "timeout",
+        stdoutOut: stdout,
+        stderrOut:
+          "Execution timed out after 4 seconds. This usually means an infinite loop or very slow solution.",
+      });
+    }, EXECUTION_TIMEOUT_MS);
 
     child.stdout.on("data", (data) => {
       stdout += data.toString();
@@ -72,11 +113,18 @@ export const executeCode = async ({ code, language, input }) => {
       stderr += data.toString();
     });
 
-    child.on("close", async (code, signal) => {
-      try {
-        await fs.rm(tempDir, { recursive: true, force: true });
-      } catch {}
+    child.on("error", () => {
+      clearTimeout(timeoutId);
+      finalize({
+        success: false,
+        errorType: "container",
+        stdoutOut: stdout,
+        stderrOut: "Execution runner failed to start.",
+      });
+    });
 
+    child.on("close", async (code, signal) => {
+      clearTimeout(timeoutId);
       const isTimeout = signal === "SIGTERM";
       const isError = code !== 0;
 
@@ -94,19 +142,17 @@ export const executeCode = async ({ code, language, input }) => {
             : isDockerFailure
             ? "container"
             : "runtime",
-          stderr: truncateOutput(
+          stderrOut:
             isTimeout
               ? "Execution timed out after 4 seconds. This usually means an infinite loop or very slow solution."
-              : errorMessage
-          ),
-          stdout: truncateOutput(stdout),
+              : errorMessage,
+          stdoutOut: stdout,
         });
       }
 
-      return resolve({
+      return finalize({
         success: true,
-        stdout: truncateOutput(stdout),
-        stderr: "",
+        stdoutOut: stdout,
       });
     });
   });

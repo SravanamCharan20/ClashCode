@@ -69,7 +69,12 @@ const worker = new Worker(
       results,
     };
   },
-  { connection },
+  {
+    connection,
+    // Keep submissions independent across users. A single stuck job
+    // should not block the entire queue.
+    concurrency: 5,
+  },
 );
 
 worker.on("completed", async (job, result) => {
