@@ -136,7 +136,7 @@ worker.on("completed", async (job, result) => {
           participant.lastSolvedAt = new Date();
         } else {
           const penalty = WRONG_VERDICT_PENALTY[finalVerdict] || 0;
-          participant.score = Math.max(0, participant.score - penalty);
+          participant.score -= penalty;
         }
       }
     }

@@ -52,6 +52,19 @@ const socketConnection = (io) => {
             roomId,
             submission,
           });
+
+          // Also push submission feed updates through personal rooms so arena
+          // users receive live updates even if they didn't join the room socket.
+          if (hasLeaderboard) {
+            leaderboard.forEach((entry) => {
+              if (entry?.user) {
+                io.to(`user:${entry.user}`).emit("submission-update", {
+                  roomId,
+                  submission,
+                });
+              }
+            });
+          }
         }
       } catch (err) {
         console.log("Redis parse error:", err.message);
