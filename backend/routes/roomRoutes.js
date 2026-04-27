@@ -257,7 +257,12 @@ roomRouter.get("/running-room", userAuth(), async (req, res) => {
     for (const room of runningRooms) {
       const synced = await syncRoomStatus(room);
 
-      if (synced.room.status === "started") {
+      const hasProblems = Array.isArray(synced.room.problems) && synced.room.problems.length > 0;
+      const hasTimeLeft =
+        synced.contestMeta.remainingSeconds === null ||
+        synced.contestMeta.remainingSeconds > 0;
+
+      if (synced.room.status === "started" && hasProblems && hasTimeLeft) {
         activeRoom = synced.room;
         activeMeta = synced.contestMeta;
         break;
