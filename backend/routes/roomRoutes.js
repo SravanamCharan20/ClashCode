@@ -179,25 +179,27 @@ roomRouter.post("/create-room", userAuth("admin"), async (req, res) => {
 roomRouter.post("/join-room", userAuth(), async (req, res) => {
   try {
     const roomCode = req.body.roomCode?.trim().toUpperCase();
+    const action = req.body.action === "rejoin" ? "rejoin" : "join";
 
     if (!roomCode) {
       return res.status(400).json({ message: "Room code is required" });
     }
 
-    const room = await Room.findOne({ roomCode }).populate("problems.problem");
-    if (!room) {
+    const foundRoom = await Room.findOne({ roomCode }).populate("problems.problem");
+    if (!foundRoom) {
       return res.status(404).json({ message: "Room not found" });
     }
 
-    if (room.status !== "waiting") {
-      return res.status(400).json({ message: "Room already started" });
+    const { room, contestMeta } = await syncRoomStatus(foundRoom);
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
     }
 
     const alreadyJoined = room.participants.find(
       (participant) => participant.user.toString() === req.user._id.toString(),
     );
 
-    if (!alreadyJoined) {
+    if (room.status === "waiting" && !alreadyJoined) {
       room.participants.push({
         user: req.user._id,
         username: req.user.username,
@@ -206,9 +208,30 @@ roomRouter.post("/join-room", userAuth(), async (req, res) => {
       await room.save();
     }
 
+    if (room.status === "started" && !alreadyJoined) {
+      return res.status(400).json({
+        message:
+          action === "rejoin"
+            ? "You are not a participant in this room"
+            : "Contest already started. Use rejoin if you already participated.",
+      });
+    }
+
+    if (room.status === "completed" || room.status === "terminated") {
+      return res.status(400).json({
+        message:
+          room.status === "completed"
+            ? "Contest already completed"
+            : "Room already terminated",
+      });
+    }
+
     res.json({
-      message: "Joined room successfully",
-      room: serializeRoom(room, getContestMeta(room)),
+      message:
+        room.status === "started"
+          ? "Rejoined contest successfully"
+          : "Joined room successfully",
+      room: serializeRoom(room, contestMeta),
     });
   } catch (error) {
     res
@@ -254,6 +277,70 @@ roomRouter.get("/running-room", userAuth(), async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       message: "Error fetching running room",
+      error: error.message,
+    });
+  }
+});
+
+roomRouter.post("/leave-running-room", userAuth(), async (req, res) => {
+  try {
+    const userId = req.user._id.toString();
+    const io = req.app.get("io");
+
+    const runningRooms = await Room.find({
+      status: "started",
+      "participants.user": req.user._id,
+    })
+      .sort({ startTime: -1, updatedAt: -1 })
+      .populate("problems.problem");
+
+    let activeRoom = null;
+    let activeMeta = null;
+
+    for (const room of runningRooms) {
+      const synced = await syncRoomStatus(room);
+
+      if (synced.room.status === "started") {
+        activeRoom = synced.room;
+        activeMeta = synced.contestMeta;
+        break;
+      }
+    }
+
+    if (!activeRoom) {
+      return res.status(404).json({
+        message: "No running contest found for this user",
+      });
+    }
+
+    activeRoom.participants = (activeRoom.participants || []).filter(
+      (participant) => participant.user?.toString() !== userId,
+    );
+    await activeRoom.save();
+
+    await Submission.deleteMany({
+      roomId: activeRoom._id.toString(),
+      userId,
+    });
+
+    if (io) {
+      io.to(activeRoom._id.toString()).emit(
+        "participants-update",
+        activeRoom.participants,
+      );
+      io.to(activeRoom._id.toString()).emit("leaderboard-update", {
+        roomId: activeRoom._id.toString(),
+        leaderboard: buildLeaderboard(activeRoom.participants),
+      });
+    }
+
+    return res.json({
+      message: "Left running contest successfully",
+      room: serializeRoom(activeRoom, activeMeta),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error while leaving running contest",
       error: error.message,
     });
   }
