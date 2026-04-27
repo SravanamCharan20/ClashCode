@@ -2,6 +2,7 @@
 
 Real-time multiplayer coding contest platform where users join private rooms, solve algorithmic problems in a live arena, and compete on a dynamic leaderboard with instant verdict updates.
 
+Video Explanation - https://youtu.be/B_2CpA23LEQ
 
 ## Project Snapshot
 
