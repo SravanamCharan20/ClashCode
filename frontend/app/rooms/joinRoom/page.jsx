@@ -17,6 +17,7 @@ export default function JoinRoom() {
       try {
         const res = await fetch(`${API_URL}/room/running-room`, {
           credentials: "include",
+          cache: "no-store",
         });
 
         if (!res.ok) {
@@ -25,7 +26,13 @@ export default function JoinRoom() {
         }
 
         const data = await res.json();
-        setRunningContest(data.room || null);
+        const room = data.room || null;
+        const isOngoing =
+          room &&
+          room.status === "started" &&
+          (room.remainingSeconds === null || room.remainingSeconds > 0);
+
+        setRunningContest(isOngoing ? room : null);
       } catch {
         setRunningContest(null);
       }
